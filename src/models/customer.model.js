@@ -98,7 +98,11 @@ contactPerson: {
 
 }, { timestamps: true });
 
-customerSchema.index({ name: 'text', mobile: 'text' });
+// Text index for fast search on name, mobile, and contactPerson
+customerSchema.index({ name: 'text', mobile: 'text', contactPerson: 'text' });
+// Regular index for city filter
 customerSchema.index({ city: 1 });
+// Index for sorting by createdAt
+customerSchema.index({ createdAt: -1 });
 
 export default mongoose.model('Customer', customerSchema);

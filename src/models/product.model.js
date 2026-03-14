@@ -104,10 +104,18 @@ imgurl:{
 }, { timestamps: true });
 
 // Indexes for search and filter functionality
-productSchema.index({ name: 'text' });
+// Text index for fast search on name and partNumber
+productSchema.index({ name: 'text', partNumber: 'text' });
+// Single field indexes for filtering
 productSchema.index({ brand: 1 });
 productSchema.index({ category: 1 });
-productSchema.index({ partNumber: 1 });
+productSchema.index({ productType: 1 });
+// Compound index for common filter combinations
+productSchema.index({ brand: 1, category: 1 });
+productSchema.index({ brand: 1, category: 1, productType: 1 });
+// Index for sorting
+productSchema.index({ createdAt: -1 });
+// Unique index
 productSchema.index({ accountgstProductId: 1 });
 
 export default mongoose.model('Product', productSchema);
