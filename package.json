@@ -1,0 +1,33 @@
+{
+  "name": "paarshva-infotech",
+  "version": "1.0.0",
+  "description": "Node.js API with authentication module",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed:admin": "node src/scripts/seedAdmin.js"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "auth",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.13.6",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-validator": "^7.2.1",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.12.1",
+    "node-cron": "^4.2.1",
+    "qs": "^6.15.0"
+  }
+}

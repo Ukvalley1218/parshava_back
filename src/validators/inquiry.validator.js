@@ -1,0 +1,179 @@
+import Joi from 'joi';
+
+// Create inquiry validation schema
+export const createInquiryValidation = Joi.object({
+  customerId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid customer ID format',
+      'any.required': 'Customer ID is required'
+    })
+});
+
+// Add product validation schema
+export const addProductValidation = Joi.object({
+  productId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid product ID format',
+      'any.required': 'Product ID is required'
+    }),
+  qty: Joi.number()
+    .integer()
+    .min(1)
+    .required()
+    .messages({
+      'number.base': 'Quantity must be a number',
+      'number.min': 'Quantity must be at least 1',
+      'any.required': 'Quantity is required'
+    }),
+  discount: Joi.number()
+    .min(0)
+    .default(0)
+    .messages({
+      'number.base': 'Discount must be a number',
+      'number.min': 'Discount cannot be negative'
+    })
+});
+
+// Update product validation schema
+export const updateProductValidation = Joi.object({
+  productId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid product ID format',
+      'any.required': 'Product ID is required'
+    }),
+  qty: Joi.number()
+    .integer()
+    .min(1)
+    .required()
+    .messages({
+      'number.base': 'Quantity must be a number',
+      'number.min': 'Quantity must be at least 1',
+      'any.required': 'Quantity is required'
+    }),
+  discount: Joi.number()
+    .min(0)
+    .default(0)
+    .messages({
+      'number.base': 'Discount must be a number',
+      'number.min': 'Discount cannot be negative'
+    })
+});
+
+// Inquiry ID validation
+export const inquiryIdValidation = Joi.object({
+  id: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid inquiry ID format',
+      'any.required': 'Inquiry ID is required'
+    })
+});
+
+// Update inquiry validation schema
+export const updateInquiryValidation = Joi.object({
+  status: Joi.string()
+    .valid('draft', 'converted', 'cancelled')
+    .messages({
+      'any.only': 'Status must be one of: draft, converted, cancelled'
+    })
+});
+
+// Remove product validation (for params)
+export const removeProductValidation = Joi.object({
+  id: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid inquiry ID format',
+      'any.required': 'Inquiry ID is required'
+    }),
+  productId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid product ID format',
+      'any.required': 'Product ID is required'
+    })
+});
+
+// ============================================
+// CART VALIDATION SCHEMAS
+// ============================================
+
+// Add to cart validation
+export const addToCartValidation = Joi.object({
+  productId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid product ID format',
+      'any.required': 'Product ID is required'
+    }),
+  qty: Joi.number()
+    .integer()
+    .min(1)
+    .default(1)
+    .messages({
+      'number.base': 'Quantity must be a number',
+      'number.min': 'Quantity must be at least 1'
+    }),
+  discount: Joi.number()
+    .min(0)
+    .default(0)
+    .messages({
+      'number.base': 'Discount must be a number',
+      'number.min': 'Discount cannot be negative'
+    })
+});
+
+// Update cart item validation (params)
+export const updateCartItemValidation = Joi.object({
+  productId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid product ID format',
+      'any.required': 'Product ID is required'
+    })
+});
+
+// Update cart item body validation
+export const updateCartItemBodyValidation = Joi.object({
+  qty: Joi.number()
+    .integer()
+    .min(1)
+    .messages({
+      'number.base': 'Quantity must be a number',
+      'number.min': 'Quantity must be at least 1'
+    }),
+  discount: Joi.number()
+    .min(0)
+    .messages({
+      'number.base': 'Discount must be a number',
+      'number.min': 'Discount cannot be negative'
+    })
+});
+
+// Submit cart validation
+export const submitCartValidation = Joi.object({
+  customerId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid customer ID format',
+      'any.required': 'Customer ID is required'
+    }),
+  notes: Joi.string()
+    .allow('')
+    .max(500)
+    .messages({
+      'string.max': 'Notes cannot exceed 500 characters'
+    })
+});
