@@ -3,8 +3,10 @@ import {
   syncProducts,
   getProducts,
   getProductById,
+  getAllBrands,
   getBrands,
-  getCategories
+  getCategories,
+  getProductTypes
 } from '../controllers/product.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import {
@@ -18,15 +20,25 @@ const router = express.Router();
 // All routes are protected
 router.use(protect);
 
+// @route   GET /api/products/brands/all
+// @desc    Get all brands (no filter) - Use this for initial brand list
+// @access  Private
+router.get('/brands/all', getAllBrands);
+
 // @route   GET /api/products/brands
-// @desc    Get unique brands list
+// @desc    Get unique brands list, optionally filtered by category
 // @access  Private
 router.get('/brands', getBrands);
 
 // @route   GET /api/products/categories
-// @desc    Get unique categories list
+// @desc    Get unique categories list, optionally filtered by brand
 // @access  Private
 router.get('/categories', getCategories);
+
+// @route   GET /api/products/subcategories
+// @desc    Get unique productTypes (subcategories), filtered by brand and category
+// @access  Private
+router.get('/subcategories', getProductTypes);
 
 // @route   POST /api/products/sync
 // @desc    Sync products from AccountGST

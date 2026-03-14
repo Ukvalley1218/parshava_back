@@ -22,7 +22,7 @@ export const syncProducts = async (req, res, next) => {
 // @access  Private
 export const getProducts = async (req, res, next) => {
   try {
-    const { page, limit, search, brand, brands, category, categories } = req.query;
+    const { page, limit, search, brand, brands, category, categories, productType } = req.query;
 
     const result = await productService.getProducts({
       page: page || 1,
@@ -31,7 +31,8 @@ export const getProducts = async (req, res, next) => {
       brand: brand || '',
       brands: brands || '',
       category: category || '',
-      categories: categories || ''
+      categories: categories || '',
+      productType: productType || ''
     });
 
     res.json({
@@ -66,6 +67,22 @@ export const getProductById = async (req, res, next) => {
   }
 };
 
+// @desc    Get all brands (no filter)
+// @route   GET /api/products/brands/all
+// @access  Private
+export const getAllBrands = async (req, res, next) => {
+  try {
+    const brands = await productService.getAllBrands();
+
+    res.json({
+      success: true,
+      data: brands
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get unique brands list, optionally filtered by category
 // @route   GET /api/products/brands
 // @access  Private
@@ -83,16 +100,34 @@ export const getBrands = async (req, res, next) => {
   }
 };
 
-// @desc    Get unique categories list
+// @desc    Get unique categories list, optionally filtered by brand
 // @route   GET /api/products/categories
 // @access  Private
 export const getCategories = async (req, res, next) => {
   try {
-    const categories = await productService.getCategories();
+    const { brand } = req.query;
+    const categories = await productService.getCategories(brand || '');
 
     res.json({
       success: true,
       data: categories
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get unique productTypes (subcategories), filtered by brand and category
+// @route   GET /api/products/subcategories
+// @access  Private
+export const getProductTypes = async (req, res, next) => {
+  try {
+    const { brand, category } = req.query;
+    const productTypes = await productService.getProductTypes(brand || '', category || '');
+
+    res.json({
+      success: true,
+      data: productTypes
     });
   } catch (error) {
     next(error);

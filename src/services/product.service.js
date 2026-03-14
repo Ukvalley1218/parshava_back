@@ -90,10 +90,11 @@ class ProductService {
 
   /**
    * Get all products with pagination, search, and filters
+   * Supports filtering by: brand, category, productType (subcategory)
    * @param {Object} options - Query options
    * @returns {Object} Products with pagination info
    */
-  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '' }) {
+  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '' }) {
     const query = {};
 
     // Search by name
@@ -125,6 +126,11 @@ class ProductService {
       if (categoryArray.length > 0) {
         query.category = { $in: categoryArray.map(c => new RegExp(`^${c}$`, 'i')) };
       }
+    }
+
+    // Filter by productType (subcategory)
+    if (productType) {
+      query.productType = { $regex: productType, $options: 'i' };
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -171,6 +177,7 @@ class ProductService {
         partNumber: product.partNumber,
         brand: product.brand,
         category: product.category,
+        productType: product.productType,
         mop: product.mop,
         nlc: product.nlc,
         hsn: product.hsn,
@@ -180,6 +187,15 @@ class ProductService {
       syncStatus: product.syncStatus,
       lastSyncedAt: product.lastSyncedAt
     };
+  }
+
+  /**
+   * Get all unique brands list
+   * @returns {Array} List of unique brands
+   */
+  async getAllBrands() {
+    const brands = await Product.distinct('brand', { brand: { $ne: null, $ne: '' } });
+    return brands.filter(b => b).sort();
   }
 
   /**
@@ -200,12 +216,43 @@ class ProductService {
   }
 
   /**
-   * Get unique categories list
+   * Get unique categories list, optionally filtered by brand
+   * @param {String} brand - Optional brand to filter categories
    * @returns {Array} List of unique categories
    */
-  async getCategories() {
-    const categories = await Product.distinct('category', { category: { $ne: null, $ne: '' } });
+  async getCategories(brand = '') {
+    const query = { category: { $ne: null, $ne: '' } };
+
+    // Filter by brand if provided
+    if (brand) {
+      query.brand = { $regex: brand, $options: 'i' };
+    }
+
+    const categories = await Product.distinct('category', query);
     return categories.filter(c => c).sort();
+  }
+
+  /**
+   * Get unique productTypes (subcategories), filtered by brand and/or category
+   * @param {String} brand - Brand to filter by
+   * @param {String} category - Category to filter by
+   * @returns {Array} List of unique productTypes
+   */
+  async getProductTypes(brand = '', category = '') {
+    const query = { productType: { $ne: null, $ne: '' } };
+
+    // Filter by brand if provided
+    if (brand) {
+      query.brand = { $regex: brand, $options: 'i' };
+    }
+
+    // Filter by category if provided
+    if (category) {
+      query.category = { $regex: category, $options: 'i' };
+    }
+
+    const productTypes = await Product.distinct('productType', query);
+    return productTypes.filter(pt => pt).sort();
   }
 
   /**
