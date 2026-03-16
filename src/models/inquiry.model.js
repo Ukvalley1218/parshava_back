@@ -10,6 +10,10 @@ const inquiryItemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  imgurl: {
+    type: String,
+    default: null
+  },
   price: {
     type: Number,
     required: true,

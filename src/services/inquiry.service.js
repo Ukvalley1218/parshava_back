@@ -294,7 +294,7 @@ class InquiryService {
       createdBy: userId,
       status: 'draft',
       customerId: { $exists: false }
-    }).populate('items.productId', 'name sku mrp gstRate images');
+    }).populate('items.productId', 'name sku mrp gstRate imgurl images');
 
     // Only return existing cart, don't create a new one
     if (!cart) {
@@ -375,7 +375,7 @@ class InquiryService {
     await cart.save();
 
     // Re-fetch to get populated product
-    cart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate images');
+    cart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate imgurl images');
     return this.formatCartResponse(cart);
   }
 
@@ -430,7 +430,7 @@ class InquiryService {
 
     await cart.save();
 
-    const updatedCart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate images');
+    const updatedCart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate imgurl images');
     return this.formatCartResponse(updatedCart);
   }
 
@@ -465,7 +465,7 @@ class InquiryService {
 
     await cart.save();
 
-    const updatedCart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate images');
+    const updatedCart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate imgurl images');
     return this.formatCartResponse(updatedCart);
   }
 
@@ -565,7 +565,8 @@ async submitCart(userId, customerId, notes = '') {
         mrp: item.productId.mrp,
         gstRate: item.productId.gstRate,
         brand: item.productId.brand,
-        category: item.productId.category
+        category: item.productId.category,
+        imgurl: item.productId.imgurl
       } : null;
 
       return {
@@ -573,6 +574,7 @@ async submitCart(userId, customerId, notes = '') {
         productId: productIdStr,
         productName: item.productName,
         name: item.productName,
+        imgurl: item.imgurl || (product?.imgurl) || null,
         price: item.price,
         qty: item.qty,
         quantity: item.qty,
