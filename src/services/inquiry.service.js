@@ -356,6 +356,7 @@ class InquiryService {
       cart.items.push({
         productId: product._id,
         productName: product.name,
+        imgurl:product.imgurl,
         price: product.mrp,
         qty,
         discount,
