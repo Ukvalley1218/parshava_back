@@ -84,8 +84,11 @@ class InquiryService {
       inquiry.items[existingItemIndex].qty = qty;
       inquiry.items[existingItemIndex].discount = discount;
     } else {
+      // Use opPrice (selling price) or fallback to mop/mrp
+      const sellingPrice = product.opPrice || product.mop || product.mrp || 0;
+
       // Calculate item total
-      const itemSubtotal = product.mrp * qty;
+      const itemSubtotal = sellingPrice * qty;
       const itemDiscount = itemSubtotal * (discount / 100);
       const itemTaxableValue = itemSubtotal - itemDiscount;
       const itemTotal = itemTaxableValue * (1 + product.gstRate / 100);
@@ -94,7 +97,11 @@ class InquiryService {
       inquiry.items.push({
         productId: product._id,
         productName: product.name,
-        price: product.mrp,
+        brand: product.brand,
+        category: product.category,
+        subcategory: product.subcategory,
+        partNumber: product.partNumber,
+        price: sellingPrice,
         qty,
         discount,
         gstRate: product.gstRate,
@@ -294,7 +301,7 @@ class InquiryService {
       createdBy: userId,
       status: 'draft',
       customerId: { $exists: false }
-    }).populate('items.productId', 'name sku mrp gstRate imgurl images');
+    }).populate('items.productId', 'name partNumber brand category subcategory mrp mop opPrice gstRate imgurl imageUrl');
 
     // Only return existing cart, don't create a new one
     if (!cart) {
@@ -346,8 +353,11 @@ class InquiryService {
       cart.items[existingItemIndex].qty += qty;
       cart.items[existingItemIndex].discount = discount;
     } else {
+      // Use opPrice (selling price) or fallback to mop/mrp
+      const sellingPrice = product.opPrice || product.mop || product.mrp || 0;
+
       // Calculate item total
-      const itemSubtotal = product.mrp * qty;
+      const itemSubtotal = sellingPrice * qty;
       const itemDiscount = itemSubtotal * (discount / 100);
       const itemTaxableValue = itemSubtotal - itemDiscount;
       const itemTotal = itemTaxableValue * (1 + product.gstRate / 100);
@@ -356,8 +366,12 @@ class InquiryService {
       cart.items.push({
         productId: product._id,
         productName: product.name,
-        imgurl:product.imgurl,
-        price: product.mrp,
+        brand: product.brand,
+        category: product.category,
+        subcategory: product.subcategory,
+        partNumber: product.partNumber,
+        imgurl: product.imgurl || product.imageUrl,
+        price: sellingPrice,
         qty,
         discount,
         gstRate: product.gstRate,
@@ -375,7 +389,7 @@ class InquiryService {
     await cart.save();
 
     // Re-fetch to get populated product
-    cart = await Inquiry.findById(cart._id).populate('items.productId', 'name sku mrp gstRate imgurl images');
+    cart = await Inquiry.findById(cart._id).populate('items.productId', 'name partNumber brand category subcategory mrp mop opPrice gstRate imgurl imageUrl');
     return this.formatCartResponse(cart);
   }
 
@@ -561,12 +575,16 @@ async submitCart(userId, customerId, notes = '') {
       const product = item.productId && typeof item.productId === 'object' ? {
         _id: item.productId._id,
         name: item.productId.name,
+        partNumber: item.productId.partNumber,
         sku: item.productId.partNumber,
         mrp: item.productId.mrp,
+        mop: item.productId.mop,
+        opPrice: item.productId.opPrice,
         gstRate: item.productId.gstRate,
         brand: item.productId.brand,
         category: item.productId.category,
-        imgurl: item.productId.imgurl
+        subcategory: item.productId.subcategory,
+        imgurl: item.productId.imgurl || item.productId.imageUrl
       } : null;
 
       return {

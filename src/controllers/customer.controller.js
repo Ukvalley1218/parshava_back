@@ -127,6 +127,81 @@ export const deleteCustomer = async (req, res, next) => {
   }
 };
 
+// @desc    Add contact person to customer
+// @route   POST /api/customers/:id/contacts
+// @access  Private
+export const addContactPerson = async (req, res, next) => {
+  try {
+    const customer = await customerService.addContactPerson(req.params.id, req.body);
+
+    res.json({
+      success: true,
+      message: 'Contact person added successfully',
+      data: customer
+    });
+  } catch (error) {
+    if (error.message === 'Customer not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Update contact person
+// @route   PATCH /api/customers/:id/contacts/:contactId
+// @access  Private
+export const updateContactPerson = async (req, res, next) => {
+  try {
+    const customer = await customerService.updateContactPerson(req.params.id, req.params.contactId, req.body);
+
+    res.json({
+      success: true,
+      message: 'Contact person updated successfully',
+      data: customer
+    });
+  } catch (error) {
+    if (error.message === 'Customer not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+    if (error.message === 'Contact person not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Contact person not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Delete contact person
+// @route   DELETE /api/customers/:id/contacts/:contactId
+// @access  Private
+export const deleteContactPerson = async (req, res, next) => {
+  try {
+    const customer = await customerService.deleteContactPerson(req.params.id, req.params.contactId);
+
+    res.json({
+      success: true,
+      message: 'Contact person deleted successfully',
+      data: customer
+    });
+  } catch (error) {
+    if (error.message === 'Customer not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+    next(error);
+  }
+};
+
 // @desc    Retry AccountGST sync
 // @route   POST /api/customers/:id/retry-sync
 // @access  Private

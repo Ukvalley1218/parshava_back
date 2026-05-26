@@ -8,36 +8,16 @@ const productSchema = new mongoose.Schema({
     trim: true,
     maxlength: 200
   },
-imgurl:{
+
+  imageUrl: {
     type: String,
     trim: true
-},
+  },
+
   partNumber: {
     type: String,
     trim: true,
     maxlength: 50
-  },
-
-  brand: {
-    type: String,
-    trim: true,
-    maxlength: 100
-  },
-
-  category: {
-    type: String,
-    trim: true,
-    maxlength: 100
-  },
-
-  productType: {
-    type: String,
-    trim: true
-  },
-
-  ledgerAccount: {
-    type: String,
-    trim: true
   },
 
   description: {
@@ -46,6 +26,58 @@ imgurl:{
     maxlength: 1000
   },
 
+  // Brand, Category, Subcategory - from Brand collection
+  brand: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+
+  brandId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Brand'
+  },
+
+  category: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId
+  },
+
+  subcategory: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+
+  subcategoryId: {
+    type: mongoose.Schema.Types.ObjectId
+  },
+
+  // Basic Info
+  unit: {
+    type: String,
+    trim: true,
+    maxlength: 20
+  },
+
+  hsn: {
+    type: String,
+    trim: true,
+    maxlength: 10
+  },
+
+  gstRate: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+
+  // Pricing - Cost
   mrp: {
     type: Number,
     min: 0
@@ -56,39 +88,82 @@ imgurl:{
     min: 0
   },
 
-  nlc: {
+  purchasePrice: {
     type: Number,
     min: 0
   },
 
-  gstRate: {
+  cnlc: {
     type: Number,
-    min: 0,
-    max: 100
+    min: 0
   },
 
-  hsn: {
+  mnlc: {
+    type: Number,
+    min: 0
+  },
+
+  // Pricing - Selling
+  opPrice: {
+    type: Number,
+    min: 0
+  },
+
+  t1: {
+    type: Number,
+    min: 0
+  },
+
+  t2: {
+    type: Number,
+    min: 0
+  },
+
+  t3: {
+    type: Number,
+    min: 0
+  },
+
+  t4: {
+    type: Number,
+    min: 0
+  },
+
+  bottomPrice: {
+    type: Number,
+    min: 0
+  },
+
+  // Density
+  density: {
     type: String,
-    trim: true,
-    maxlength: 10
+    enum: ['Regular', 'B2B', 'Back to Back'],
+    default: 'Regular'
   },
 
-  unit: {
-    type: String,
-    trim: true,
-    maxlength: 20
-  },
-
+  // Stock
   stock: {
     type: Number,
     default: 0
   },
 
+  // AccountGST sync
   accountgstProductId: {
     type: String,
     trim: true,
     unique: true,
     sparse: true
+  },
+
+  // Legacy fields from AccountGST
+  productType: {
+    type: String,
+    trim: true
+  },
+
+  ledgerAccount: {
+    type: String,
+    trim: true
   },
 
   syncStatus: {
@@ -99,23 +174,23 @@ imgurl:{
 
   lastSyncedAt: {
     type: Date
+  },
+
+  active: {
+    type: Boolean,
+    default: true
   }
 
 }, { timestamps: true });
 
 // Indexes for search and filter functionality
-// Text index for fast search on name and partNumber
-productSchema.index({ name: 'text', partNumber: 'text' });
-// Single field indexes for filtering
+productSchema.index({ name: 'text', partNumber: 'text', brand: 'text', category: 'text', subcategory: 'text', description: 'text' });
 productSchema.index({ brand: 1 });
 productSchema.index({ category: 1 });
-productSchema.index({ productType: 1 });
-// Compound index for common filter combinations
+productSchema.index({ subcategory: 1 });
 productSchema.index({ brand: 1, category: 1 });
-productSchema.index({ brand: 1, category: 1, productType: 1 });
-// Index for sorting
+productSchema.index({ brand: 1, category: 1, subcategory: 1 });
 productSchema.index({ createdAt: -1 });
-// Unique index
 productSchema.index({ accountgstProductId: 1 });
 
 export default mongoose.model('Product', productSchema);

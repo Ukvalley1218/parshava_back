@@ -90,12 +90,12 @@ class ProductService {
 
   /**
    * Get all products with pagination, search, and filters
-   * Supports filtering by: brand, category, productType (subcategory)
+   * Supports filtering by: brand, category, productType (subcategory), subcategory
    * Optimized for performance with text search and lean queries
    * @param {Object} options - Query options
    * @returns {Object} Products with pagination info
    */
-  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '' }) {
+  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '' }) {
     const query = {};
 
     // Use text search for better performance (uses text index)
@@ -131,9 +131,14 @@ class ProductService {
       }
     }
 
-    // Filter by productType (subcategory)
+    // Filter by productType (legacy subcategory field)
     if (productType) {
       query.productType = productType;
+    }
+
+    // Filter by subcategory (new field from Brand collection)
+    if (subcategory) {
+      query.subcategory = subcategory;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -141,7 +146,7 @@ class ProductService {
     // Use lean() for faster queries (~30% performance improvement)
     const [products, total] = await Promise.all([
       Product.find(query)
-        .select('name partNumber brand category productType mrp mop nlc gstRate hsn unit stock imgurl accountgstProductId syncStatus createdAt')
+        .select('name partNumber brand category subcategory productType mrp mop nlc gstRate hsn unit stock imgurl accountgstProductId syncStatus createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
@@ -172,27 +177,8 @@ class ProductService {
       throw new Error('Product not found');
     }
 
-    // Return product with specifications structure
-    return {
-      name: product.name,
-      price: product.price,
-      gstRate: product.gstRate,
-      description: product.description,
-      stock: product.stock,
-      specifications: {
-        partNumber: product.partNumber,
-        brand: product.brand,
-        category: product.category,
-        productType: product.productType,
-        mop: product.mop,
-        nlc: product.nlc,
-        hsn: product.hsn,
-        unit: product.unit
-      },
-      accountgstProductId: product.accountgstProductId,
-      syncStatus: product.syncStatus,
-      lastSyncedAt: product.lastSyncedAt
-    };
+    // Return product with all fields
+    return product;
   }
 
   /**

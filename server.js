@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import connectDB from './src/config/database.js';
 import authRoutes from './src/routes/auth.routes.js';
 import customerRoutes from './src/routes/customer.routes.js';
@@ -14,9 +16,13 @@ import dashboardRoutes from './src/routes/dashboard.routes.js'
 import schemeRoutes from './src/routes/scheme.routes.js'
 import notificationRoutes from './src/routes/notification.routes.js'
 import adminRoutes from './src/routes/admin/index.js'
+import uploadRoutes from './src/routes/upload.routes.js'
 
 dotenv.config();
 startCronJobs()
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +34,9 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.get('/', (req, res) => {
@@ -44,6 +53,7 @@ app.use("/api/dashboard", dashboardRoutes)
 app.use("/api/schemes", schemeRoutes)
 app.use("/api/notifications", notificationRoutes)
 app.use("/api/admin", adminRoutes)
+app.use("/api/upload", uploadRoutes)
 
 // Error handling
 app.use(notFound);

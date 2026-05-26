@@ -6,7 +6,10 @@ import {
   updateCustomer,
   deleteCustomer,
   retrySync,
-  getCities
+  getCities,
+  addContactPerson,
+  updateContactPerson,
+  deleteContactPerson
 } from '../controllers/customer.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import {
@@ -66,6 +69,33 @@ router.delete(
   '/:id',
   validateRequest(customerIdValidation, 'params'),
   deleteCustomer
+);
+
+// @route   POST /api/customers/:id/contacts
+// @desc    Add contact person to customer
+// @access  Private
+router.post(
+  '/:id/contacts',
+  validateRequest(customerIdValidation, 'params'),
+  addContactPerson
+);
+
+// @route   PATCH /api/customers/:id/contacts/:contactId
+// @desc    Update contact person
+// @access  Private
+router.patch(
+  '/:id/contacts/:contactId',
+  validateRequest(customerIdValidation, 'params'),
+  updateContactPerson
+);
+
+// @route   DELETE /api/customers/:id/contacts/:contactId
+// @desc    Delete contact person from customer
+// @access  Private
+router.delete(
+  '/:id/contacts/:contactId',
+  validateRequest(customerIdValidation, 'params'),
+  deleteContactPerson
 );
 
 // @route   POST /api/customers/:id/retry-sync

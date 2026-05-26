@@ -246,6 +246,122 @@ class CustomerService {
     await customer.save();
     return customer;
   }
+
+  /**
+   * Add a contact person to customer
+   * @param {String} customerId - Customer ID
+   * @param {Object} contactData - Contact person data
+   * @returns {Object} Updated customer
+   */
+  async addContactPerson(customerId, contactData) {
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // If this is marked as primary, unmark other contacts as primary
+    if (contactData.isPrimary) {
+      customer.contactPersons.forEach(contact => {
+        contact.isPrimary = false;
+      });
+    }
+
+    // Add the new contact person
+    customer.contactPersons.push(contactData);
+
+    // Update legacy contactPerson field for backward compatibility
+    if (contactData.isPrimary || customer.contactPersons.length === 1) {
+      customer.contactPerson = contactData.name;
+      customer.mobile = customer.mobile || contactData.mobile;
+    }
+
+    await customer.save();
+    return customer;
+  }
+
+  /**
+   * Update a contact person
+   * @param {String} customerId - Customer ID
+   * @param {String} contactId - Contact person ID
+   * @param {Object} updateData - Updated contact data
+   * @returns {Object} Updated customer
+   */
+  async updateContactPerson(customerId, contactId, updateData) {
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    const contactIndex = customer.contactPersons.findIndex(
+      contact => contact._id.toString() === contactId
+    );
+
+    if (contactIndex === -1) {
+      throw new Error('Contact person not found');
+    }
+
+    // If this is marked as primary, unmark other contacts
+    if (updateData.isPrimary) {
+      customer.contactPersons.forEach((contact, index) => {
+        if (index !== contactIndex) {
+          contact.isPrimary = false;
+        }
+      });
+    }
+
+    // Update the contact person
+    Object.keys(updateData).forEach(key => {
+      customer.contactPersons[contactIndex][key] = updateData[key];
+    });
+
+    // Update legacy field if primary contact changed
+    if (updateData.isPrimary) {
+      customer.contactPerson = customer.contactPersons[contactIndex].name;
+    }
+
+    await customer.save();
+    return customer;
+  }
+
+  /**
+   * Delete a contact person from customer
+   * @param {String} customerId - Customer ID
+   * @param {String} contactId - Contact person ID
+   * @returns {Object} Updated customer
+   */
+  async deleteContactPerson(customerId, contactId) {
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    const contactIndex = customer.contactPersons.findIndex(
+      contact => contact._id.toString() === contactId
+    );
+
+    if (contactIndex === -1) {
+      throw new Error('Contact person not found');
+    }
+
+    // Remove the contact person
+    customer.contactPersons.splice(contactIndex, 1);
+
+    // Update legacy field if needed
+    const primaryContact = customer.contactPersons.find(c => c.isPrimary);
+    if (primaryContact) {
+      customer.contactPerson = primaryContact.name;
+    } else if (customer.contactPersons.length > 0) {
+      customer.contactPerson = customer.contactPersons[0].name;
+    } else {
+      customer.contactPerson = '';
+    }
+
+    await customer.save();
+    return customer;
+  }
 }
 
 export default new CustomerService();

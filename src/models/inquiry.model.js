@@ -10,6 +10,18 @@ const inquiryItemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  brand: {
+    type: String
+  },
+  category: {
+    type: String
+  },
+  subcategory: {
+    type: String
+  },
+  partNumber: {
+    type: String
+  },
   imgurl: {
     type: String,
     default: null
