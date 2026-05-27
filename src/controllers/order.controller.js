@@ -10,9 +10,17 @@ export const createOrder = async (req, res, next) => {
       req.user._id
     );
 
+    // Check if AccountGST sync was successful
+    const accountgstStatus = order.accountgstSyncStatus;
+    const accountgstMessage = order.accountgstSyncError;
+
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: accountgstStatus === 'synced'
+        ? 'Order created and synced to AccountGST successfully'
+        : accountgstStatus === 'failed'
+          ? `Order created but AccountGST sync failed: ${accountgstMessage}`
+          : 'Order created successfully',
       data: order
     });
   } catch (error) {
@@ -34,10 +42,45 @@ export const createOrder = async (req, res, next) => {
         message: 'Cannot create order from empty inquiry'
       });
     }
-    if (error.message === 'Customer not found or not synced with AccountGST') {
+    if (error.message === 'Customer not found') {
       return res.status(400).json({
         success: false,
-        message: 'Customer not found or not synced with AccountGST'
+        message: 'Customer not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Retry AccountGST sync for order
+// @route   POST /api/orders/:id/retry-sync
+// @access  Private
+export const retrySync = async (req, res, next) => {
+  try {
+    const order = await orderService.retryAccountGSTSync(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Order synced to AccountGST successfully',
+      data: order
+    });
+  } catch (error) {
+    if (error.message === 'Order not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    if (error.message === 'Order already synced with AccountGST') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order already synced with AccountGST'
+      });
+    }
+    if (error.message === 'Customer not synced with AccountGST') {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer not synced with AccountGST. Please sync the customer first.'
       });
     }
     next(error);

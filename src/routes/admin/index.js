@@ -25,6 +25,9 @@ import Inquiry from '../../models/inquiry.model.js';
 import Order from '../../models/order.model.js';
 import Product from '../../models/product.model.js';
 import Brand from '../../models/brand.model.js';
+import orderService from '../../services/order.service.js';
+import customerService from '../../services/customer.service.js';
+import productService from '../../services/product.service.js';
 
 const router = express.Router();
 
@@ -124,64 +127,18 @@ router.get('/customers/:id', async (req, res, next) => {
 
 router.post('/customers', async (req, res, next) => {
   try {
-
-    const customerData = {
-      softwareId: req.body.softwareId,
-
-      // Personal Details
-      firmName: req.body.firmName,
-      firmPhoto: req.body.firmPhoto,
-      name: req.body.name,
-      customerPhoto: req.body.customerPhoto,
-      designation: req.body.designation,
-
-      // Contact Numbers
-      mobile: req.body.mobile,
-      isWhatsApp: req.body.isWhatsApp ?? true,
-      mobile2: req.body.mobile2,
-      mobile2Whatsapp: req.body.mobile2Whatsapp || false,
-      mobile3: req.body.mobile3,
-      mobile3Whatsapp: req.body.mobile3Whatsapp || false,
-
-      email: req.body.email,
-
-      // Address
-      address: req.body.address,
-      googleLocation: req.body.googleLocation,
-      landmark: req.body.landmark,
-      city: req.body.city,
-      state: req.body.state,
-      pincode: req.body.pincode,
-      country: req.body.country || 'India',
-
-      // Business Documents
-      gstin: req.body.gstin,
-      panNumber: req.body.panNumber,
-      aadharNumber: req.body.aadharNumber,
-      shopActNumber: req.body.shopActNumber,
-      msmeNumber: req.body.msmeNumber,
-      documents: req.body.documents || [],
-
-      // Management
-      priceListCategory: req.body.priceListCategory || 'T1',
-      accountManager: req.body.accountManager,
-      productManager: req.body.productManager,
-
-      // Additional
-      customerType: req.body.customerType || 'customer',
-      customerStatus: req.body.customerStatus || 'active',
-      leadSource: req.body.leadSource,
-      notes: req.body.notes
-    };
-
-    const customer = await Customer.create(customerData);
+    // Use customer service to create customer with AccountGST sync
+    const customer = await customerService.createCustomer(req.body, req.user._id);
 
     res.status(201).json({
       success: true,
-      message: 'Customer created successfully',
+      message: customer.syncStatus === 'synced'
+        ? 'Customer created and synced to AccountGST successfully'
+        : customer.syncStatus === 'failed'
+          ? 'Customer created but AccountGST sync failed'
+          : 'Customer created successfully',
       data: customer
     });
-
   } catch (error) {
     next(error);
   }
@@ -223,6 +180,22 @@ router.delete('/customers/:id', async (req, res, next) => {
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
     res.json({ success: true, message: 'Customer deleted successfully' });
   } catch (error) { next(error); }
+});
+
+// Retry AccountGST sync for failed customers
+router.post('/customers/:id/retry-sync', async (req, res, next) => {
+  try {
+    const customer = await customerService.retrySync(req.params.id);
+    res.json({
+      success: true,
+      message: customer.syncStatus === 'synced'
+        ? 'Customer synced to AccountGST successfully'
+        : 'AccountGST sync failed',
+      data: customer
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // ============================================
@@ -279,29 +252,17 @@ router.delete('/inquiries/:id', async (req, res, next) => {
 
 router.post('/inquiries/:id/convert', async (req, res, next) => {
   try {
-    const inquiry = await Inquiry.findById(req.params.id);
-    if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    // Use order service to create order with AccountGST sync
+    const order = await orderService.createOrderFromInquiry(req.params.id, req.user._id);
 
-    // Create order from inquiry
-    const order = await Order.create({
-      customerId: inquiry.customerId,
-      customerDetails: inquiry.customerDetails,
-      items: inquiry.items,
-      subtotal: inquiry.subtotal,
-      discountTotal: inquiry.discountTotal,
-      gstTotal: inquiry.gstTotal,
-      grandTotal: inquiry.grandTotal,
-      status: 'pending',
-      inquiryId: inquiry._id,
-      createdBy: req.user._id
+    res.json({
+      success: true,
+      message: 'Inquiry converted to order successfully',
+      data: order
     });
-
-    // Update inquiry status
-    inquiry.status = 'converted';
-    await inquiry.save();
-
-    res.json({ success: true, message: 'Inquiry converted to order successfully', data: order });
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
 
 // ============================================
@@ -356,6 +317,20 @@ router.delete('/orders/:id', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// Retry AccountGST sync for failed orders
+router.post('/orders/:id/retry-sync', async (req, res, next) => {
+  try {
+    const order = await orderService.retryAccountGSTSync(req.params.id);
+    res.json({
+      success: true,
+      message: 'Order synced to AccountGST successfully',
+      data: order
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ============================================
 // PRODUCTS ROUTES
 // ============================================
@@ -396,46 +371,67 @@ router.get('/products/:id', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
+    // Convert empty ObjectId strings to undefined to prevent CastError
+    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId'];
+    const processedBody = { ...req.body };
+
+    objectIdFields.forEach(field => {
+      if (processedBody[field] === '' || processedBody[field] === null) {
+        processedBody[field] = undefined;
+      }
+    });
+
     const productData = {
-      name: req.body.name,
-      imageUrl: req.body.imageUrl,
-      partNumber: req.body.partNumber,
-      description: req.body.description,
-      brand: req.body.brand,
-      brandId: req.body.brandId,
-      category: req.body.category,
-      categoryId: req.body.categoryId,
-      subcategory: req.body.subcategory,
-      subcategoryId: req.body.subcategoryId,
-      unit: req.body.unit,
-      hsn: req.body.hsn,
-      gstRate: req.body.gstRate,
-      mrp: req.body.mrp,
-      mop: req.body.mop,
-      purchasePrice: req.body.purchasePrice,
-      cnlc: req.body.cnlc,
-      mnlc: req.body.mnlc,
-      opPrice: req.body.opPrice,
-      t1: req.body.t1,
-      t2: req.body.t2,
-      t3: req.body.t3,
-      t4: req.body.t4,
-      bottomPrice: req.body.bottomPrice,
-      density: req.body.density || 'Regular',
-      stock: req.body.stock || 0,
-      active: req.body.active !== undefined ? req.body.active : true
+      name: processedBody.name,
+      imageUrl: processedBody.imageUrl,
+      partNumber: processedBody.partNumber,
+      description: processedBody.description,
+      brand: processedBody.brand,
+      brandId: processedBody.brandId,
+      category: processedBody.category,
+      categoryId: processedBody.categoryId,
+      subcategory: processedBody.subcategory,
+      subcategoryId: processedBody.subcategoryId,
+      unit: processedBody.unit,
+      hsn: processedBody.hsn,
+      gstRate: processedBody.gstRate,
+      mrp: processedBody.mrp,
+      mop: processedBody.mop,
+      purchasePrice: processedBody.purchasePrice,
+      cnlc: processedBody.cnlc,
+      mnlc: processedBody.mnlc,
+      opPrice: processedBody.opPrice,
+      t1: processedBody.t1,
+      t2: processedBody.t2,
+      t3: processedBody.t3,
+      t4: processedBody.t4,
+      bottomPrice: processedBody.bottomPrice,
+      density: processedBody.density || 'Regular',
+      stock: processedBody.stock || 0,
+      active: processedBody.active !== undefined ? processedBody.active : true
     };
 
-    const product = await Product.create(productData);
+    // Use product service for creation
+    const product = await productService.createProduct(productData);
     res.status(201).json({ success: true, message: 'Product created successfully', data: product });
   } catch (error) { next(error); }
 });
 
 router.put('/products/:id', async (req, res, next) => {
   try {
+    // Convert empty ObjectId strings to null to prevent CastError
+    const updateData = { ...req.body };
+    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId'];
+
+    objectIdFields.forEach(field => {
+      if (updateData[field] === '' || updateData[field] === null) {
+        updateData[field] = undefined;
+      }
+    });
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });

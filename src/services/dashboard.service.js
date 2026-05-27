@@ -2,6 +2,7 @@ import Sale from '../models/sale.model.js';
 import Customer from '../models/customer.model.js';
 import Order from '../models/order.model.js';
 import Inquiry from '../models/inquiry.model.js';
+import Product from '../models/product.model.js';
 
 class DashboardService {
   /**
@@ -68,15 +69,23 @@ class DashboardService {
   // Pending orders
   const pendingOrders = await Order.countDocuments({ status: "pending" });
 
-  // Draft inquiries
+  // Total orders
+  const totalOrders = await Order.countDocuments();
+
+  // Draft inquiries (not converted yet)
   const inquiryCount = await Inquiry.countDocuments({ status: "draft" });
+
+  // Total products
+  const totalProducts = await Product.countDocuments();
 
   return {
     todaySales: todaySalesResult[0]?.todaySales || 0,
     totalOutstanding: outstandingResult[0]?.totalOutstanding || 0,
     overdueAmount: overdueResult[0]?.overdueAmount || 0,
     pendingOrders,
-    inquiryCount
+    totalOrders,
+    inquiryCount,
+    totalProducts
   };
 }
 

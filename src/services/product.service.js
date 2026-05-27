@@ -146,7 +146,7 @@ class ProductService {
     // Use lean() for faster queries (~30% performance improvement)
     const [products, total] = await Promise.all([
       Product.find(query)
-        .select('name partNumber brand category subcategory productType mrp mop nlc gstRate hsn unit stock imgurl accountgstProductId syncStatus createdAt')
+        .select('name partNumber brand category subcategory productType imageUrl mrp mop purchasePrice cnlc mnlc opPrice t1 t2 t3 t4 bottomPrice gstRate hsn unit stock density description accountgstProductId syncStatus createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))

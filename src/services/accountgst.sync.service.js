@@ -16,33 +16,56 @@ const ACCOUNTGST_BASE_URL = process.env.ACCOUNTGST_BASE_URL || 'https://ultimate
  */
 
 
+/**
+ * Make request to AccountGST API
+ * Different endpoints use different field names for authentication:
+ * - customercreate.php uses 'connectid'
+ * - refmasterapi.php, productmasterapi.php use 'connectingkey'
+ * @param {String} endpoint - API endpoint
+ * @param {Object} additionalPayload - Additional payload data
+ * @returns {Object} API response data
+ */
 const makeAccountGSTRequest = async (endpoint, additionalPayload = {}) => {
-
+  // Use 'connectingkey' for most API endpoints (refmasterapi, productmasterapi, etc.)
+  // Note: customercreate.php uses 'connectid' instead - handled separately in customer.service.js
   const payload = {
     connectingkey: process.env.ACCOUNTGST_KEY,
     companycode: process.env.ACCOUNTGST_COMPANY,
     ...additionalPayload
   };
 
-  // console.log("Sending payload:", payload);
+  console.log(`AccountGST Request: ${endpoint}`, JSON.stringify({
+    connectingkey: process.env.ACCOUNTGST_KEY ? `${process.env.ACCOUNTGST_KEY.substring(0, 20)}...` : 'NOT SET',
+    companycode: process.env.ACCOUNTGST_COMPANY,
+    ...additionalPayload
+  }));
 
-  const response = await axios.post(
-    `${ACCOUNTGST_BASE_URL}/${endpoint}`,
-    payload,
-    {
-      headers: {
-        "Content-Type": "application/json"
+  try {
+    const response = await axios.post(
+      `${ACCOUNTGST_BASE_URL}/${endpoint}`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json"
+        }
       }
+    );
+
+    console.log(`AccountGST Response (${endpoint}):`, JSON.stringify(response.data, null, 2));
+
+    if (!response.data || response.data.status !== "success") {
+      console.error('AccountGST API returned non-success:', JSON.stringify(response.data, null, 2));
+      throw new Error(`AccountGST API Error: ${response.data?.message || response.data?.msg || response.data?.error || "Unknown error"}`);
     }
-  );
 
-  // console.log("AccountGST response:", response.data);
-
-  if (!response.data || response.data.status !== "success") {
-    throw new Error(`AccountGST API Error: ${response.data?.message || "Unknown error"}`);
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      console.error('AccountGST API Error Response:', JSON.stringify(error.response.data, null, 2));
+      throw new Error(`AccountGST API Error: ${error.response.data?.message || error.response.data?.msg || error.response.data?.error || error.message}`);
+    }
+    throw error;
   }
-
-  return response.data;
 };
 
 class AccountGSTSyncService {

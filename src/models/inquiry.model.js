@@ -61,6 +61,7 @@ const inquirySchema = new mongoose.Schema({
     required: false // Optional for draft carts - set when inquiry is submitted
   },
   customerDetails: {
+  firmName: String,
   name: String,
   mobile: String,
   email: String,

@@ -283,6 +283,10 @@ const customerSchema = new mongoose.Schema({
 
   lastSyncedAt: {
     type: Date
+  },
+
+  accountgstSyncError: {
+    type: String
   }
 
 }, { timestamps: true });

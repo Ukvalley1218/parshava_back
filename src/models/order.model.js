@@ -71,15 +71,39 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'processing', 'completed', 'cancelled'],
+    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending'
   },
   accountgstInvoiceId: {
     type: String
   },
+  accountgstOrderId: {
+    type: String
+  },
+  accountgstSyncStatus: {
+    type: String,
+    enum: ['pending', 'synced', 'failed'],
+    default: 'pending'
+  },
+  accountgstSyncError: {
+    type: String
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  shippingAddress: {
+    address: { type: String },
+    city: { type: String },
+    state: { type: String },
+    pincode: { type: String }
+  },
+  customerDetails: {
+    name: { type: String },
+    firmName: { type: String },
+    mobile: { type: String },
+    email: { type: String },
+    gstin: { type: String }
   }
 }, {
   timestamps: true

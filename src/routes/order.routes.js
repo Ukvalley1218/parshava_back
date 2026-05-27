@@ -3,7 +3,8 @@ import {
   createOrder,
   getOrders,
   getOrderById,
-  updateOrderStatus
+  updateOrderStatus,
+  retrySync
 } from '../controllers/order.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.request.js';
@@ -25,6 +26,15 @@ router.post(
   '/from-inquiry',
   validateRequest(createOrderValidation),
   createOrder
+);
+
+// @route   POST /api/orders/:id/retry-sync
+// @desc    Retry AccountGST sync for failed order
+// @access  Private
+router.post(
+  '/:id/retry-sync',
+  validateRequest(orderIdValidation, 'params'),
+  retrySync
 );
 
 // @route   GET /api/orders

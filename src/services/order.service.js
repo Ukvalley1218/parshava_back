@@ -2,6 +2,7 @@ import axios from 'axios';
 import Order from '../models/order.model.js';
 import Inquiry from '../models/inquiry.model.js';
 import Customer from '../models/customer.model.js';
+import Product from '../models/product.model.js';
 import { createNotification } from './notification.service.js';
 
 // Base URL for AccountGST API
@@ -38,6 +39,90 @@ const makeAccountGSTRequest = async (endpoint, additionalPayload = {}) => {
 };
 
 /**
+ * Format date for AccountGST API (dd-mm-yyyy)
+ * @param {Date} date - Date object
+ * @returns {String} Formatted date string
+ */
+const formatDateForAccountGST = (date) => {
+  const d = date || new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+/**
+ * Create sales order in AccountGST
+ * @param {Object} order - Order data
+ * @param {Object} customer - Customer data with AccountGST ID
+ * @param {Array} items - Order items
+ * @param {String} userId - User ID
+ * @returns {Object} AccountGST response
+ */
+const createSalesOrderInAccountGST = async (order, customer, items, userId) => {
+  // Format product details for AccountGST
+  const productDetails = items.map(item => {
+    const priceWithGST = item.price * (1 + item.gstRate / 100);
+    const priceWithoutGST = item.price;
+    const quantity = item.qty || item.quantity || 1;
+    const discount = item.discount || 0;
+
+    return {
+      productid: item.accountgstProductId || item.productId?.toString() || '',
+      quantity: String(quantity),
+      description: item.productName || item.name || '',
+      pricewithgst: String(Math.round(priceWithGST * 100) / 100),
+      pricewithoutgst: String(Math.round(priceWithoutGST * 100) / 100),
+      discount: String(discount),
+      netamount: '0' // Always send 0 as per API docs
+    };
+  });
+
+  // Calculate total amount
+  const voucherAmount = items.reduce((sum, item) => {
+    const qty = item.qty || item.quantity || 1;
+    const price = item.price || 0;
+    const discount = item.discount || 0;
+    const gstRate = item.gstRate || 0;
+    const taxableValue = price * qty * (1 - discount / 100);
+    const totalWithGST = taxableValue * (1 + gstRate / 100);
+    return sum + totalWithGST;
+  }, 0);
+
+  // Prepare voucher data
+  const voucherData = {
+    customerid: customer.accountgstId || '',
+    userid: '1', // Default user ID - can be made configurable
+    voucherdate: formatDateForAccountGST(order.createdAt || new Date()),
+    ponum: order.orderNumber || '',
+    podate: formatDateForAccountGST(order.createdAt || new Date()),
+    shipto: customer.firmName || customer.name || 'Unknown',
+    shipadddress: customer.address || '',
+    shipgstin: customer.gstin || '',
+    shippin: customer.pincode || '',
+    contactperson: customer.name || '',
+    contactnum: customer.mobile || '',
+    transporterid: '', // Optional - can be added later
+    voucheramount: String(Math.round(voucherAmount * 100) / 100),
+    locationid: '', // Optional - can be added later
+    salesmanid: '', // Optional - can be added later
+    productdetails: productDetails,
+    actionfrom: 'E-Store Enquiry',
+    doroundup: 1,
+    narration: `Order created from inquiry ${order.inquiryId || ''}`,
+    internalremark: '',
+    salesledgerid: '',
+    condition: {
+      disablebatch: 1
+    }
+  };
+
+  return await makeAccountGSTRequest('salesordercreate.php', {
+    voucherdata: voucherData
+  });
+};
+
+/**
  * Generate unique order number
  * @returns {String} Order number
  */
@@ -59,6 +144,57 @@ const generateOrderNumber = async () => {
   return `ORD${year}${month}${day}${sequence}`;
 };
 
+/**
+ * Update product stock after order creation
+ * @param {Array} items - Order items with productId and qty
+ * @returns {Object} Stock update result
+ */
+const updateProductStock = async (items) => {
+  const stockUpdates = [];
+
+  for (const item of items) {
+    const productId = item.productId?._id || item.productId;
+    const qty = item.qty || 1;
+
+    if (!productId) continue;
+
+    try {
+      const product = await Product.findById(productId);
+
+      if (product) {
+        const previousStock = product.stock || 0;
+        const newStock = Math.max(0, previousStock - qty);
+
+        await Product.findByIdAndUpdate(
+          productId,
+          { stock: newStock },
+          { new: true }
+        );
+
+        stockUpdates.push({
+          productId,
+          productName: product.name || item.productName,
+          previousStock,
+          quantityOrdered: qty,
+          newStock,
+          success: true
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to update stock for product ${productId}:`, error.message);
+      stockUpdates.push({
+        productId,
+        productName: item.productName || 'Unknown',
+        quantityOrdered: qty,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  return stockUpdates;
+};
+
 class OrderService {
   /**
    * Create order from inquiry
@@ -67,8 +203,10 @@ class OrderService {
    * @returns {Object} Created order
    */
   async createOrderFromInquiry(inquiryId, userId) {
-    // Fetch inquiry
-    const inquiry = await Inquiry.findById(inquiryId).populate('customerId');
+    // Fetch inquiry with populated items
+    const inquiry = await Inquiry.findById(inquiryId)
+      .populate('customerId')
+      .populate('items.productId', 'accountgstProductId name partNumber');
 
     if (!inquiry) {
       throw new Error('Inquiry not found');
@@ -83,22 +221,41 @@ class OrderService {
     }
 
     // Get customer with AccountGST ID
-    const customer = await Customer.findById(inquiry.customerId._id);
+    const customer = await Customer.findById(inquiry.customerId._id || inquiry.customerId);
 
-    if (!customer || !customer.accountgstId) {
-      throw new Error('Customer not found or not synced with AccountGST');
+    if (!customer) {
+      throw new Error('Customer not found');
     }
 
     // Generate order number
     const orderNumber = await generateOrderNumber();
 
+    // Prepare customer details snapshot
+    const customerDetails = {
+      name: customer.name || '',
+      firmName: customer.firmName || customer.name || '',
+      mobile: customer.mobile || '',
+      email: customer.email || '',
+      gstin: customer.gstin || ''
+    };
+
+    // Prepare shipping address from customer
+    const shippingAddress = {
+      address: customer.address || '',
+      city: customer.city || '',
+      state: customer.state || '',
+      pincode: customer.pincode || ''
+    };
+
     // Create order in MongoDB
     const order = await Order.create({
       orderNumber,
-      customerId: inquiry.customerId._id,
+      customerId: inquiry.customerId._id || inquiry.customerId,
       inquiryId: inquiry._id,
+      customerDetails,
+      shippingAddress,
       items: inquiry.items.map(item => ({
-        productId: item.productId,
+        productId: item.productId?._id || item.productId,
         productName: item.productName,
         price: item.price,
         qty: item.qty,
@@ -110,47 +267,89 @@ class OrderService {
       gstTotal: inquiry.gstTotal,
       grandTotal: inquiry.grandTotal,
       status: 'pending',
-      createdBy: userId
+      createdBy: userId,
+      accountgstSyncStatus: 'pending'
     });
 
-    // Try to create invoice in AccountGST
+    // Try to create sales order in AccountGST
     try {
-      // Format items for AccountGST API
-      const invoiceItems = inquiry.items.map(item => ({
-        productconnectid: item.productId,
-        productname: item.productName,
-        qty: item.qty,
-        rate: item.price,
-        discount: item.discount,
-        gst: item.gstRate,
-        total: item.total
-      }));
+      // Check if customer has AccountGST ID
+      if (!customer.accountgstId) {
+        console.warn('Customer does not have AccountGST ID, skipping sync');
+        order.accountgstSyncStatus = 'failed';
+        order.accountgstSyncError = 'Customer not synced with AccountGST';
+        await order.save();
+      } else {
+        // Prepare items with AccountGST product IDs
+        const itemsForAccountGST = inquiry.items.map(item => {
+          const product = item.productId;
+          return {
+            productId: item.productId?._id || item.productId,
+            accountgstProductId: product?.accountgstProductId || '',
+            productName: item.productName,
+            price: item.price,
+            qty: item.qty,
+            discount: item.discount,
+            gstRate: item.gstRate
+          };
+        });
 
-      const response = await makeAccountGSTRequest('salescreate.php', {
-        refmasterconnectid: customer.accountgstId,
-        items: invoiceItems,
-        subtotal: inquiry.subtotal,
-        gsttotal: inquiry.gstTotal,
-        grandtotal: inquiry.grandTotal
-      });
+        // Check if all products have AccountGST IDs
+        const productsWithoutGSTId = itemsForAccountGST.filter(
+          item => !item.accountgstProductId
+        );
 
-      // Store AccountGST invoice ID if returned
-      if (response.result && response.result.invoice_id) {
-        order.accountgstInvoiceId = response.result.invoice_id;
+        if (productsWithoutGSTId.length > 0) {
+          console.warn('Some products do not have AccountGST IDs');
+        }
+
+        // Create sales order in AccountGST
+        const response = await createSalesOrderInAccountGST(
+          order.toObject(),
+          customer.toObject(),
+          itemsForAccountGST,
+          userId
+        );
+
+        // Store AccountGST order ID if returned
+        if (response.result && response.result.orderid) {
+          order.accountgstOrderId = response.result.orderid;
+          order.accountgstSyncStatus = 'synced';
+          order.accountgstSyncError = undefined;
+        } else if (response.result && response.result.order_id) {
+          order.accountgstOrderId = response.result.order_id;
+          order.accountgstSyncStatus = 'synced';
+          order.accountgstSyncError = undefined;
+        } else {
+          order.accountgstSyncStatus = 'synced';
+        }
+
         await order.save();
       }
     } catch (apiError) {
-      console.error('AccountGST Invoice Creation Error:', apiError.message);
+      console.error('AccountGST Sales Order Creation Error:', apiError.message);
       // Order is still saved in MongoDB even if AccountGST sync fails
-      // The order can be manually synced later
+      order.accountgstSyncStatus = 'failed';
+      order.accountgstSyncError = apiError.message;
+      await order.save();
     }
 
     // Update inquiry status to converted
     inquiry.status = 'converted';
     await inquiry.save();
 
+    // Update product stock
+    let stockUpdateResult = null;
+    try {
+      stockUpdateResult = await updateProductStock(inquiry.items);
+      console.log('Stock update result:', stockUpdateResult);
+    } catch (stockError) {
+      console.error('Failed to update product stock:', stockError.message);
+      // Don't fail the order if stock update fails
+    }
+
     // Populate order for notification
-    const populatedOrder = await order.populate('customerId', 'name mobile email');
+    const populatedOrder = await order.populate('customerId', 'name firmName mobile email');
 
     // Create notification for new order
     try {
@@ -164,7 +363,70 @@ class OrderService {
       console.error('Notification failed:', error.message);
     }
 
-    return populatedOrder;
+    return {
+      ...populatedOrder.toObject(),
+      stockUpdates: stockUpdateResult
+    };
+  }
+
+  /**
+   * Retry syncing order to AccountGST
+   * @param {String} orderId - Order ID
+   * @returns {Object} Updated order
+   */
+  async retryAccountGSTSync(orderId) {
+    const order = await Order.findById(orderId)
+      .populate('customerId')
+      .populate('items.productId', 'accountgstProductId name');
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (order.accountgstSyncStatus === 'synced') {
+      throw new Error('Order already synced with AccountGST');
+    }
+
+    const customer = order.customerId;
+
+    if (!customer || !customer.accountgstId) {
+      throw new Error('Customer not synced with AccountGST');
+    }
+
+    try {
+      const itemsForAccountGST = order.items.map(item => ({
+        productId: item.productId?._id || item.productId,
+        accountgstProductId: item.productId?.accountgstProductId || '',
+        productName: item.productName,
+        price: item.price,
+        qty: item.qty,
+        discount: item.discount,
+        gstRate: item.gstRate
+      }));
+
+      const response = await createSalesOrderInAccountGST(
+        order.toObject(),
+        customer.toObject(),
+        itemsForAccountGST,
+        order.createdBy
+      );
+
+      if (response.result && (response.result.orderid || response.result.order_id)) {
+        order.accountgstOrderId = response.result.orderid || response.result.order_id;
+        order.accountgstSyncStatus = 'synced';
+        order.accountgstSyncError = undefined;
+      } else {
+        order.accountgstSyncStatus = 'synced';
+      }
+
+      await order.save();
+      return order;
+    } catch (apiError) {
+      order.accountgstSyncStatus = 'failed';
+      order.accountgstSyncError = apiError.message;
+      await order.save();
+      throw apiError;
+    }
   }
 
   /**
@@ -184,7 +446,7 @@ class OrderService {
 
     const [orders, total] = await Promise.all([
       Order.find(query)
-        .populate('customerId', 'name mobile email')
+        .populate('customerId', 'name firmName mobile email gstin address city state pincode')
         .populate('createdBy', 'name email')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -210,7 +472,7 @@ class OrderService {
    */
   async getOrderById(orderId) {
     const order = await Order.findById(orderId)
-      .populate('customerId', 'name mobile email address city state gstin')
+      .populate('customerId', 'name firmName mobile email gstin address city state pincode')
       .populate('inquiryId')
       .populate('createdBy', 'name email');
 

@@ -210,7 +210,7 @@ class InquiryService {
 
     const [inquiries, total] = await Promise.all([
       Inquiry.find(query)
-        .populate('customerId', 'name mobile email')
+        .populate('customerId', 'name firmName mobile email')
         .populate('createdBy', 'name email')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -538,7 +538,8 @@ async submitCart(userId, customerId, notes = '') {
   cart.customerId = customerId;
 
   cart.customerDetails = {
-    name: customer.name,
+    name: customer.name || customer.firmName || 'Unknown',
+    firmName: customer.firmName || customer.name || 'Unknown',
     mobile: customer.mobile,
     email: customer.email,
     address: customer.address,
@@ -553,7 +554,8 @@ async submitCart(userId, customerId, notes = '') {
 
   await cart.save();
 
-  return cart;
+  // Populate customerId before returning
+  return cart.populate('customerId', 'name mobile email');
 }
 
   /**

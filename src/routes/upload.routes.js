@@ -1,25 +1,46 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { protect } from '../middleware/auth.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Ensure upload directories exist
+const uploadBasePath = path.join(__dirname, '../../uploads');
+const requiredDirs = [
+  path.join(uploadBasePath, 'general'),
+  path.join(uploadBasePath, 'customers/photos'),
+  path.join(uploadBasePath, 'customers/documents'),
+  path.join(uploadBasePath, 'products/images')
+];
+
+requiredDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
 const router = express.Router();
+
+// Get folder path based on field name
+const getFolderPath = (fieldname) => {
+  if (fieldname === 'firmPhoto' || fieldname === 'customerPhoto') {
+    return 'customers/photos';
+  } else if (fieldname === 'productImage') {
+    return 'products/images';
+  } else if (['panCard', 'aadharCard', 'shopAct', 'msme', 'gstCertificate', 'other'].includes(fieldname)) {
+    return 'customers/documents';
+  }
+  return 'general';
+};
 
 // Storage configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let folder = 'general';
-
-    if (file.fieldname === 'firmPhoto' || file.fieldname === 'customerPhoto') {
-      folder = 'customers/photos';
-    } else if (['panCard', 'aadharCard', 'shopAct', 'msme', 'gstCertificate', 'other'].includes(file.fieldname)) {
-      folder = 'customers/documents';
-    }
-
+    const folder = getFolderPath(file.fieldname);
     const uploadPath = path.join(__dirname, '../../uploads', folder);
     cb(null, uploadPath);
   },
@@ -31,16 +52,16 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter
+// File filter - Allow common image types and PDF
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|pdf/;
+  const allowedTypes = /jpeg|jpg|png|gif|webp|pdf/;
   const extName = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimeType = allowedTypes.test(file.mimetype);
+  const mimeType = /jpeg|jpg|png|gif|webp|pdf/.test(file.mimetype);
 
   if (extName && mimeType) {
     cb(null, true);
   } else {
-    cb(new Error('Only .jpeg, .jpg, .png, and .pdf files are allowed'), false);
+    cb(new Error('Only image files (jpeg, jpg, png, gif, webp) and PDF files are allowed'), false);
   }
 };
 
@@ -48,7 +69,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
 // Customer document upload fields
@@ -69,6 +90,13 @@ const customerUploadFields = [
 router.post('/single/:field', protect, (req, res) => {
   upload.single(req.params.field)(req, res, (err) => {
     if (err) {
+      // Handle multer errors specifically
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size exceeds the 5MB limit'
+        });
+      }
       return res.status(400).json({
         success: false,
         message: err.message || 'File upload failed'
@@ -82,14 +110,7 @@ router.post('/single/:field', protect, (req, res) => {
       });
     }
 
-    // Determine folder for URL
-    let folder = 'general';
-    if (['firmPhoto', 'customerPhoto'].includes(req.params.field)) {
-      folder = 'customers/photos';
-    } else {
-      folder = 'customers/documents';
-    }
-
+    const folder = getFolderPath(req.params.field);
     const fileUrl = `/uploads/${folder}/${req.file.filename}`;
 
     res.json({
@@ -113,6 +134,12 @@ router.post('/single/:field', protect, (req, res) => {
 router.post('/customer', protect, (req, res) => {
   upload.fields(customerUploadFields)(req, res, (err) => {
     if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size exceeds the 5MB limit'
+        });
+      }
       return res.status(400).json({
         success: false,
         message: err.message || 'File upload failed'
@@ -129,9 +156,7 @@ router.post('/customer', protect, (req, res) => {
     // Process uploaded files
     const uploadedFiles = {};
     Object.keys(req.files).forEach(fieldName => {
-      const folder = ['firmPhoto', 'customerPhoto'].includes(fieldName)
-        ? 'customers/photos'
-        : 'customers/documents';
+      const folder = getFolderPath(fieldName);
 
       uploadedFiles[fieldName] = req.files[fieldName].map(file => ({
         fieldname: file.fieldname,

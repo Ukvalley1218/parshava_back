@@ -1,0 +1,388 @@
+{
+  "info": {
+    "_postman_id": "68844bc9-299a-4275-b5d7-055e117e812a",
+    "name": "AccountGST",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1507933"
+  },
+  "item": [
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "creditnoterptapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"datatype\": 1,\r\n    \"fromdate\": \"01-04-2018\",\r\n    \"todate\": \"31-03-2026\",\r\n    \"refmasterconnectid\":\"\",\r\n    \"shownextrecord\": 0\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/creditnoterptapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "creditnoterptapi.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/creditnoterptapi.php](https://ultimate.accountgst.com/admin/api/creditnoterptapi.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"datatype\": \"1\",\n  \"fromdate\": \"01-04-2018\",\n  \"todate\": \"31-03-2026\",\n  \"refmasterconnectid\"=>\"\",\n  \"shownextrecord\": 0\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| datatype | Integer (compulsory) | Data fetch mode (see below)  <br>**0** = Fetch only newly created, modified or cancelled records  <br>**1** = Fetch all records within the specified date range  <br>**2** = Fetch all records from the beginning (full data) |\n| fromdate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| todate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| refmasterconnectid | Integer (optional) | To retrieve records for a specific supplier. |\n| shownextrecord | Integer (compulsory) | Pagination control (default 0)  <br>_This API uses loop-based pagination via shownextrecord.  <br>1) First request always send 0.  <br>2) After First call, send which API response return last call.  <br>3) Repeat until response contains \\[ \"records\": 0 \\]_ |"
+          },
+          "response": []
+        },
+        {
+          "name": "debitnoterptapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"datatype\": 1,\r\n    \"fromdate\": \"01-04-2018\",\r\n    \"todate\": \"31-03-2026\",\r\n    \"refmasterconnectid\":\"\",\r\n    \"shownextrecord\": 0\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/debitnoterptapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "debitnoterptapi.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/debitnoterptapi.php](https://ultimate.accountgst.com/admin/api/debitnoterptapi.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"datatype\": \"1\",\n  \"fromdate\": \"01-04-2018\",\n  \"todate\": \"31-03-2026\",\n  \"refmasterconnectid\"=>\"\",\n  \"shownextrecord\": 0\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| datatype | Integer (compulsory) | Data fetch mode (see below)  <br>**0** = Fetch only newly created, modified or cancelled records  <br>**1** = Fetch all records within the specified date range  <br>**2** = Fetch all records from the beginning (full data) |\n| fromdate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| todate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| refmasterconnectid | Integer (optional) | To retrieve records for a specific supplier. |\n| shownextrecord | Integer (compulsory) | Pagination control (default 0)  <br>_This API uses loop-based pagination via shownextrecord.  <br>1) First request always send 0.  <br>2) After First call, send which API response return last call.  <br>3) Repeat until response contains \\[ \"records\": 0 \\]_ |"
+          },
+          "response": []
+        },
+        {
+          "name": "paymentreceiptrptapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"datatype\": 1,\r\n    \"fromdate\": \"01-04-2018\",\r\n    \"todate\": \"31-03-2026\",\r\n    \"refmasterconnectid\": \"0\",\r\n    \"vouchertype\": \"\",\r\n    \"shownextrecord\": 0\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/paymentreceiptrptapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "paymentreceiptrptapi.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/paymentreceiptrptapi.php](https://ultimate.accountgst.com/admin/api/paymentreceiptrptapi.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"datatype\": \"1\",\n  \"fromdate\": \"01-04-2018\",\n  \"todate\": \"31-03-2026\",\n  \"refmasterconnectid\"=>\"\",\n  \"vouchertype\"=>\"\",\n  \"shownextrecord\": 0\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| datatype | Integer (compulsory) | Data fetch mode (see below)  <br>**0** = Fetch only newly created, modified or cancelled records  <br>**1** = Fetch all records within the specified date range  <br>**2** = Fetch all records from the beginning (full data) |\n| fromdate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| todate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| refmasterconnectid | Integer (optional) | To retrieve records for a specific customer/supplier. |\n| vouchertype | String (optional) | **receipt** = Retrieve only receipt records  <br>**payment** = Retrieve only payment records |\n| shownextrecord | Integer (compulsory) | Pagination control (default 0)  <br>_This API uses loop-based pagination via shownextrecord.  <br>1) First request always send 0.  <br>2) After First call, send which API response return last call.  <br>3) Repeat until response contains \\[ \"records\": 0 \\]_ |"
+          },
+          "response": []
+        },
+        {
+          "name": "purchaserptapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"datatype\": 1,\r\n    \"fromdate\": \"01-04-2018\",\r\n    \"todate\": \"31-03-2026\",\r\n    \"refmasterconnectid\":\"\",\r\n    \"paidstatus\": \"\",\r\n    \"shownextrecord\": 0\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/purchaserptapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "purchaserptapi.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/purchaserptapi.php](https://ultimate.accountgst.com/admin/api/purchaserptapi.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"datatype\": \"1\",\n  \"fromdate\": \"01-04-2018\",\n  \"todate\": \"31-03-2026\",\n  \"refmasterconnectid\"=>\"\",\n  \"paidstatus\"=>\"\",\n  \"shownextrecord\": 0\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| datatype | Integer (compulsory) | Data fetch mode (see below)  <br>**0** = Fetch only newly created, modified or cancelled records  <br>**1** = Fetch all records within the specified date range  <br>**2** = Fetch all records from the beginning (full data) |\n| fromdate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| todate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| refmasterconnectid | Integer (optional) | To retrieve records for a specific supplier. |\n| paidstatus | String (optional) | **paid** = Retrieve only paid records  <br>**unpaid** = Retrieve only unpaid records |\n| shownextrecord | Integer (compulsory) | Pagination control (default 0)  <br>_This API uses loop-based pagination via shownextrecord.  <br>1) First request always send 0.  <br>2) After First call, send which API response return last call.  <br>3) Repeat until response contains \\[ \"records\": 0 \\]_ |"
+          },
+          "response": []
+        },
+        {
+          "name": "salerptapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"datatype\": 1,\r\n    \"fromdate\": \"01-04-2018\",\r\n    \"todate\": \"31-03-2026\",\r\n    \"refmasterconnectid\":\"\",\r\n    \"paidstatus\": \"\",\r\n    \"shownextrecord\": 0\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/salerptapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "salerptapi.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/salerptapi.php](https://ultimate.accountgst.com/admin/api/salerptapi.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"datatype\": \"1\",\n  \"fromdate\": \"01-04-2018\",\n  \"todate\": \"31-03-2026\",\n  \"refmasterconnectid\"=>\"\",\n  \"paidstatus\"=>\"\",\n  \"shownextrecord\": 0\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| datatype | Integer (compulsory) | Data fetch mode (see below)  <br>**0** = Fetch only newly created, modified or cancelled records  <br>**1** = Fetch all records within the specified date range  <br>**2** = Fetch all records from the beginning (full data) |\n| fromdate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| todate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| refmasterconnectid | Integer (optional) | To retrieve records for a specific customer. |\n| paidstatus | String (optional) | **paid** = Retrieve only paid records  <br>**unpaid** = Retrieve only unpaid records |\n| shownextrecord | Integer (compulsory) | Pagination control (default 0)  <br>_This API uses loop-based pagination via shownextrecord.  <br>1) First request always send 0.  <br>2) After First call, send which API response return last call.  <br>3) Repeat until response contains \\[ \"records\": 0 \\]_ |"
+          },
+          "response": []
+        },
+        {
+          "name": "salesorderrptapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"datatype\": 1,\r\n    \"fromdate\": \"01-04-2018\",\r\n    \"todate\": \"31-03-2026\",\r\n    \"refmasterconnectid\":\"\",\r\n    \"orderstatus\": \"pending\",\r\n    \"shownextrecord\": 0\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/salesorderrptapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "salesorderrptapi.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/salesorderrptapi.php](https://ultimate.accountgst.com/admin/api/salesorderrptapi.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"datatype\": \"1\",\n  \"fromdate\": \"01-04-2018\",\n  \"todate\": \"31-03-2026\",\n  \"refmasterconnectid\"=>\"\",\n  \"orderstatus\"=>\"\",\n  \"shownextrecord\": 0\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| datatype | Integer (compulsory) | Data fetch mode (see below)  <br>**0** = Fetch only newly created, modified or cancelled records  <br>**1** = Fetch all records within the specified date range  <br>**2** = Fetch all records from the beginning (full data) |\n| fromdate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| todate | dd-mm-yyyy (optional) | Required only if datatype = **1** |\n| refmasterconnectid | Integer (optional) | To retrieve records for a specific customer. |\n| orderstatus | String (optional)  <br>_leave it blank to retrieve all records_ | **pending** = Retrieve only pending records.  <br>**complete** = Retrieve only completed records.  <br>**archive** = Retrieve only archived records.  <br>**delete** = Retrieve only deleted records. |\n| shownextrecord | Integer (compulsory) | Pagination control (default 0)  <br>_This API uses loop-based pagination via shownextrecord.  <br>1) First request always send 0.  <br>2) After First call, send which API response return last call.  <br>3) Repeat until response contains \\[ \"records\": 0 \\]_ |"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "masters",
+      "item": [
+        {
+          "name": "refmasterapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"connectingkey\":\"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\"companycode\":\"ADMIN\",\"newlycreated\":\"0\",\"refmasterconnectid\":\"\"}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/refmasterapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "refmasterapi.php"
+              ]
+            },
+            "description": "This POST API endpoint 'refmasterapi.php' is used to fetch Customer masters for a specified company.\n\nRequest Body Parameters:\n\n- connectingkey (string): Authentication key required to access the API.\n    \n- companycode (string): The code of the company for which the report is requested. Example: 'ADMIN'.\n    \n- newlycreated (string): Flag indicating whether to fetch newly created records. Use '0' for no. Use '1' for yes.\n    \n\nImportant Notes:\n\n- Ensure the connectingkey is valid and active.\n    \n- Dates must be in the specified format (dd-mm-yyyy) to avoid errors.\n    \n- The API returns data only for the specified companycode and date range.\n    \n- Use this endpoint to integrate Customer masters into your accounting or ERP systems."
+          },
+          "response": []
+        },
+        {
+          "name": "pricelistapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"connectingkey\":\"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\"companycode\":\"ADMIN\",\"productid\":[\"87656\",\"111035\"],\"pricelistid\":[\"63\",\"125\"]}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/pricelistapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "pricelistapi.php"
+              ]
+            },
+            "description": "This POST API endpoint 'productapi.php' is used to fetch Product masters for a specified company.\n\nRequest Body Parameters:\n\n- connectingkey (string): Authentication key required to access the API.\n    \n- companycode (string): The code of the company for which the report is requested. Example: 'ADMIN'.\n    \n- newlycreated (string): Flag indicating whether to fetch newly created records. Use '0' for no. Use '1' for yes.\n    \n\nImportant Notes:\n\n- Ensure the connectingkey is valid and active.\n    \n- Dates must be in the specified format (dd-mm-yyyy) to avoid errors.\n    \n- The API returns data only for the specified companycode and date range.\n    \n- Use this endpoint to integrate Product masters into your accounting or ERP systems."
+          },
+          "response": []
+        },
+        {
+          "name": "productapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"connectingkey\":\"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\"companycode\":\"ADMIN\",\"newlycreated\":\"0\",\"productconnectid\":\"\"}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/productmasterapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "productmasterapi.php"
+              ]
+            },
+            "description": "This POST API endpoint 'productapi.php' is used to fetch Product masters for a specified company.\n\nRequest Body Parameters:\n\n- connectingkey (string): Authentication key required to access the API.\n    \n- companycode (string): The code of the company for which the report is requested. Example: 'ADMIN'.\n    \n- newlycreated (string): Flag indicating whether to fetch newly created records. Use '0' for no. Use '1' for yes.\n    \n\nImportant Notes:\n\n- Ensure the connectingkey is valid and active.\n    \n- Dates must be in the specified format (dd-mm-yyyy) to avoid errors.\n    \n- The API returns data only for the specified companycode and date range.\n    \n- Use this endpoint to integrate Product masters into your accounting or ERP systems."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "transactions",
+      "item": [
+        {
+          "name": "customercreate.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "data",
+                  "value": "eyJjb25uZWN0aWQiOiJiMzc4YTJiZGMwZTRiZDg4NDhhNjZlYjM2MzQ1Mjc1NEk4c3VmQnJSc0VMbFMwQWYxOUFRS3EzSk9IZUU2V2R3KzBhOCtFeXZRQlVhYWxPa2xTNmhpRElhVjZKOGwyNGdJNmdKc0dOXC92dlM1dXkyMDhkUVJsbWtTR01sT05aR2l2Rzl2cWgzcXB3a2VERVwvYk1tUERlZ3dhYkUyUERVYVg2S25MMVlBZzlkWWp3S2tjXC9sOTFqZz09IiwiY29tcGFueWNvZGUiOiJBRE1JTiIsImxpbmsiOiJodHRwczpcL1wvdWx0aW1hdGUuYWNjb3VudGdzdC5jb20iLCJkYXRhIjp7Im5hbWUiOiIiLCJnc3RuIjoiIiwiYWRkcmVzcyI6ImFiYyIsImNpdHluYW1lIjoiQmFuZ2Fsb3JlIiwic3RhdGVuYW1lIjoiQXNzYW0iLCJwaW4iOiI0MjM0MiIsImNvbnRhY3QiOiJhYmMiLCJtb2JpbGUiOiI0NTYiLCJlbWFpbCI6ImRmZ2RmMkBTRCIsImFsdGVybmF0ZW1vYmlsZSI6IiIsIm9wZW5pbmdiYWxhbmNlIjoiIiwib3BlbmluZ3R5cGUiOiJkZWJpdCIsInNhbGVzbWFuaWQiOiIiLCJwcmljZWxpc3RpZCI6IiIsInN0b3BsaW1pdCI6IiIsImFsZXJ0bGltaXQiOiIiLCJjcmVkaXRsaW1pdG9uYmlsbGRheXMiOiIiLCJhcHBsb2dpbiI6MCwidHVybm92ZXJkYXlzIjoiIiwidHJhbnNwb3J0ZXJpZCI6IiIsImV4Y2x1ZGVmcm9tdGltZWx5cmVtaW5kZXIiOjEsImV4Y2x1ZGVmcm9tbW9udGhseXJlbWluZGVyIjoxfX0=",
+                  "type": "text",
+                  "uuid": "63440f2f-91db-423b-b09a-0fccfbcdf7c5"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/customercreate.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "customercreate.php"
+              ]
+            },
+            "description": "This POST request is used to interact with the sales report API endpoint at [https://ultimate.accountgst.com/admin/api/salerptapi.php](https://ultimate.accountgst.com/admin/api/salerptapi.php). It allows querying sales report data within a specified date range and other optional filters.\n\nEndpoint URL: [https://ultimate.accountgst.com/admin/api/salerptapi.php](https://ultimate.accountgst.com/admin/api/salerptapi.php)  \nHTTP Method: POST\n\nJSON Body Parameters:\n\n- connectingkey: A string key used for authentication or connection validation.\n    \n- companycode: The code representing the company, e.g., 'ADMIN'.\n    \n- newlycreated (string): Flag indicating whether to fetch newly created records. Use '0' for no. Use '1' for yes.\n    \n- fromdate: The start date for the report in DD-MM-YYYY format.\n    \n- todate: The end date for the report in DD-MM-YYYY format.\n    \n- refmasterconnectid: An optional reference ID for master connection filtering.\n    \n- paidstatus: Filter for payment status; can be 'paid' or 'unpaid'. If empty, no filter is applied."
+          },
+          "response": []
+        },
+        {
+          "name": "salesordercreate.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n    \"companycode\": \"ADMIN\",\r\n    \"voucherdata\": {\r\n        \"customerid\": \"141\",\r\n        \"userid\": \"1\",\r\n        \"voucherdate\": \"14-05-2026\",\r\n        \"ponum\": \"EStore7\",\r\n        \"podate\": \"14-05-2026\",\r\n        \"shipto\": \"ABC Customer\",\r\n        \"shipadddress\": \"37, 4th floor dawa bazaar\",\r\n        \"shipgstin\": \"GSTSN1234567892\",\r\n        \"shippin\": \"452001\",\r\n        \"contactperson\": \"Ramesh\",\r\n        \"contactnum\": \"8349995484\",\r\n        \"transporterid\": \"5\",\r\n        \"voucheramount\": \"1000\",\r\n        \"locationid\": \"333\",\r\n        \"salesmanid\": \"145\",\r\n        \"productdetails\": [\r\n            {\r\n                \"productid\": \"84505\",\r\n                \"quantity\": \"2\",\r\n                \"description\": \"some product details\",\r\n                \"pricewithgst\": \"118\",\r\n                \"pricewithoutgst\": \"100\",\r\n                \"discount\": \"5\",\r\n                \"netamount\": \"0\"\r\n            },\r\n            {\r\n                \"productid\": \"84538\",\r\n                \"quantity\": \"2\",\r\n                \"description\": \"some product details\",\r\n                \"pricewithgst\": \"236\",\r\n                \"pricewithoutgst\": \"200\",\r\n                \"discount\": \"5\",\r\n                \"netamount\": \"0\"\r\n            }\r\n        ],\r\n        \"actionfrom\": \"Admin APP\",\r\n        \"doroundup\": 1,\r\n        \"narration\": \"\",\r\n        \"internalremark\": \"\",\r\n        \"salesledgerid\": \"2718\",\r\n        \"condition\": {\r\n            \"disablebatch\": 1\r\n        }\r\n    }\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/salesordercreate.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "salesordercreate.php"
+              ]
+            },
+            "description": "Endpoint and Method\n\n- POST [https://ultimate.accountgst.com/admin/api/salesordercreate.php](https://ultimate.accountgst.com/admin/api/salesordercreate.php)\n    \n\nHeaders\n\n- Content-Type: application/json\n    \n\nAuthentication\n\n- Uses a static/shared connectingkey supplied by AccountGST. Treat this as a secret and do not expose publicly. Rotate or request a new key via your AccountGST admin if compromised.\n    \n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Example Request Body**\n\n```\n{\n    \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n    \"companycode\": \"ADMIN\",\n    \"voucherdata\": {\n        \"customerid\": \"141\",\n        \"userid\": \"1\",\n        \"voucherdate\": \"14-05-2026\",\n        \"ponum\": \"EStore7\",\n        \"podate\": \"14-05-2026\",\n        \"shipto\": \"ABC Customer\",\n        \"shipadddress\": \"37, 4th floor dawa bazaar\",\n        \"shipgstin\": \"GSTSN1234567892\",\n        \"shippin\": \"452001\",\n        \"contactperson\": \"Ramesh\",\n        \"contactnum\": \"8349995484\",\n        \"transporterid\": \"5\",\n        \"voucheramount\": \"1000\",\n        \"locationid\": \"333\",\n        \"salesmanid\": \"145\",\n        \"productdetails\": [\n            {\n                \"productid\": \"84505\",\n                \"quantity\": \"2\",\n                \"description\": \"some product details\",\n                \"pricewithgst\": \"118\",\n                \"pricewithoutgst\": \"100\",\n                \"discount\": \"5\",\n                \"netamount\": \"0\"\n            },\n            {\n                \"productid\": \"84538\",\n                \"quantity\": \"2\",\n                \"description\": \"some product details\",\n                \"pricewithgst\": \"236\",\n                \"pricewithoutgst\": \"200\",\n                \"discount\": \"5\",\n                \"netamount\": \"0\"\n            }\n        ],\n        \"actionfrom\": \"Admin APP\",\n        \"doroundup\": 1,\n        \"narration\": \"\",\n        \"internalremark\": \"\",\n        \"salesledgerid\": \"2718\",\n        \"condition\": {\n            \"disablebatch\": 1\n        }\n    }\n}\n\n ```\n\n**Request Parameters Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| connectingkey | String (compulsory) |  |\n| companycode | String (compulsory) |  |\n| voucherdata | array (compulsory) |  |\n\n**Parameters \\[voucherdata\\] Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| customerid | String (compulsory) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Ledger A/C → Sundry Debtor Customer |\n| userid | String (compulsory) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Login Users |\n| voucherdate | Date(dd-mm-yyyy (compulsory) | Salesorder Date |\n| ponum | String (optional) | P.O. Number |\n| podate | Date(dd-mm-yyyy) (optional) | P.O. Date |\n| shipto | String (compulsory) | Shipped To (firm name) |\n| shipadddress | String (compulsory) | Shipped To (firm address) |\n| shipgstin | String (compulsory) | GSTIN or leave it blank |\n| shippin | String (compulsory) | Shipped To pin code |\n| contactperson | String (optional) | Contact Person |\n| contactnum | String (optional) | Contact Person's mobile number |\n| transporterid | String (optional) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Transporter  <br>Or  <br>leave it blank |\n| voucheramount | Float (compulsory) | Salesorder Total Amount |\n| locationid | String (compulsory) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Location |\n| salesmanid | String (optional) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Ledger A/C → Sundry Creditor → Salesman  <br>Or  <br>leave it blank |\n| actionfrom | String (compulsory) | Customer APP  <br>E-Store Order  <br>Admin APP  <br>E-Store Enquiry |\n| doroundup | Integer (compulsory) | 1 or 0  <br>1 = Apply round-off to the voucher  <br>0 = Do not apply round-off to the voucher |\n| narration | String (optional) |  |\n| internalremark | String (optional) |  |\n| salesledgerid | String (optional) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Ledger A/C → Sale Ledger  <br>Or  <br>leave it blank |\n| condition | array (compulsory) | \"disablebatch\": 1 |\n\n**Parameters \\[productdetails\\] Explanation**\n\n| Parameter | Data Type | Description |\n| --- | --- | --- |\n| productid | String (compulsory) | To obtain this ID, navigate to:  <br>Dashboard → Masters → Product → Product |\n| quantity | String (compulsory) | Product quantity |\n| description | Text (optional) | Product description |\n| pricewithgst | String (compulsory) | Product's amount with GST |\n| pricewithoutgst | String (compulsory) | Product's amount without GST |\n| discount | Float (compulsory) | in percentage only eg.: 5 |\n| netamount | String (compulsory) | Please always send **0** as the value.  <br>If the value is greater than **0**, the ERP will automatically reverse-calculate the amount, including GST and excluding GST. |"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Communication",
+      "item": [
+        {
+          "name": "mailapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"connectingkey\":\"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN\\/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE\\/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc\\/l91jg==\",\"companycode\":\"ADMIN\",\"userid\":\"1\",\"emailto\":\"haider@gridsonlab.com\",\"emailcc\":\"\",\"msgsub\":\"Subject of mail\",\"msgbody\":\"Body of mail\",\"attachment\":[{\"filetype\":\"url\",\"filename\":\"Ferrari Pic\",\"fileext\":\"jpg\",\"filedata\":\"https:\\/\\/www.topgear.com\\/sites\\/default\\/files\\/cars-car\\/image\\/2020\\/07\\/dsc09285.jpg\"}],\"event\":\"general mail\"}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/mailapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "mailapi.php"
+              ]
+            },
+            "description": "**mailapi.php**\n\nThis API is use to send mail.\n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Request Body Parameters:**\n\n``` json\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"userid\": \"1\",\n  \"emailto\": \"abc1@mail.com,abc2@mail.com\", // comma separated values\n  \"emailcc\": \"xyz1@mail.com,xyz2@mail.com\", // comma separated values\n  \"msgsub\": \"Subject of mail\",\n  \"msgbody\": \"Body of mail\",\n  \"attachment\": [\n    {\n      \"filetype\": \"url\", // base64 | url\n      \"filename\": \"Ferrari Pic\",\n      \"fileext\": \"jpg\",\n      \"filedata\": \"https://www.topgear.com/sites/default/files/cars-car/image/2020/07/dsc09285.jpg\"\n    }\n  ],\n  \"event\": \"general mail\"\n}\n\n ```"
+          },
+          "response": []
+        },
+        {
+          "name": "whatsappapi.php",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\r\n  \"companycode\": \"ADMIN\",\r\n  \"userid\": \"1\",\r\n  \"mobile\": \"98934xxxxx,98275xxxxx\",\r\n  \"msgsub\": \"Subject of WhatsApp\",\r\n  \"msgbody\": \"Body of WhatsApp\",\r\n  \"mergemessage\": 0,\r\n  \"attachment\": {\r\n    \"filetype\": \"url\",\r\n    \"filename\": \"Ferrari Pic\",\r\n    \"fileext\": \"jpg\",\r\n    \"filedata\": \"https://www.topgear.com/sites/default/files/cars-car/image/2020/07/dsc09285.jpg\"\r\n  },\r\n  \"event\": \"general mail\"\r\n}"
+            },
+            "url": {
+              "raw": "https://ultimate.accountgst.com/admin/api/whatsappapi.php",
+              "protocol": "https",
+              "host": [
+                "ultimate",
+                "accountgst",
+                "com"
+              ],
+              "path": [
+                "admin",
+                "api",
+                "whatsappapi.php"
+              ]
+            },
+            "description": "**whatsappapi.php**\n\nThis API is use to send mail.\n\nTo obtain the **Connecting Key** and **Company Code**, please log in to the ERP system.\n\nNavigate to:  \n**Dashboard → Tools → Company Settings → Other → API Connecting Key**\n\n**Request Body Parameters:**\n\n``` json\n{\n  \"connectingkey\": \"b378a2bdc0e4bd8848a66eb363452754I8sufBrRsELlS0Af19AQKq3JOHeE6Wdw+0a8+EyvQBUaalOklS6hiDIaV6J8l24gI6gJsGN/vvS5uy208dQRlmkSGMlONZGivG9vqh3qpwkeDE/bMmPDegwabE2PDUaX6KnL1YAg9dYjwKkc/l91jg==\",\n  \"companycode\": \"ADMIN\",\n  \"userid\": \"1\",\n  \"mobile\": \"98934xxxxx,98275xxxxx\", // comma separated values\n  \"msgsub\": \"Subject of WhatsApp\",\n  \"msgbody\": \"Body of WhatsApp\",\n  \"mergemessage\": 0, // 0 = no, 1 = yes, send 1 if you want to merge message and attachment\n  \"attachment\": {\n    \"filetype\": \"url\", // url | base64\n    \"filename\": \"Ferrari Pic\",\n    \"fileext\": \"jpg\",\n    \"filedata\": \"https://www.topgear.com/sites/default/files/cars-car/image/2020/07/dsc09285.jpg\"\n  },\n  \"event\": \"general mail\"\n}\n\n ```"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

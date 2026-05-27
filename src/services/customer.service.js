@@ -1,6 +1,184 @@
 import axios from 'axios';
 import Customer from '../models/customer.model.js';
+import Order from '../models/order.model.js';
 import { createNotification } from './notification.service.js';
+
+// Base URL for AccountGST API
+const ACCOUNTGST_BASE_URL = process.env.ACCOUNTGST_BASE_URL || 'https://ultimate.accountgst.com/admin/api';
+
+/**
+ * Make request to AccountGST API
+ * @param {String} endpoint - API endpoint
+ * @param {Object} additionalPayload - Additional payload data
+ * @returns {Object} API response data
+ */
+const makeAccountGSTRequest = async (endpoint, additionalPayload = {}) => {
+  const payload = {
+    connectingkey: process.env.ACCOUNTGST_KEY,
+    companycode: process.env.ACCOUNTGST_COMPANY,
+    ...additionalPayload
+  };
+
+  const response = await axios.post(
+    `${ACCOUNTGST_BASE_URL}/${endpoint}`,
+    payload,
+    {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+
+  if (!response.data || response.data.status !== 'success') {
+    throw new Error(`AccountGST API Error: ${response.data?.message || 'Unknown error'}`);
+  }
+
+  return response.data;
+};
+
+/**
+ * Create customer in AccountGST using base64 encoded data
+ * @param {Object} customerData - Customer data
+ * @returns {Object} AccountGST response
+ */
+const createCustomerInAccountGST = async (customerData) => {
+  // Get the base URL for the link field (use the same server we're calling)
+  const baseUrl = process.env.ACCOUNTGST_BASE_URL || 'https://ultimate.accountgst.com/admin/api';
+  const linkUrl = baseUrl.replace('/admin/api', '');
+
+  // Prepare customer data for AccountGST
+  // Only include fields that are required or have valid values
+  const customerDataForGST = {
+    name: customerData.firmName || customerData.name || '',
+    gstin: customerData.gstin || '',
+    address: customerData.address || '',
+    cityname: customerData.city || '',
+    statename: customerData.state || '',
+    pin: customerData.pincode || '',
+    contact: customerData.name || '',
+    mobile: customerData.mobile || '',
+    email: customerData.email || '',
+    alternatemobile: customerData.mobile2 || customerData.alternateMobile || '',
+    openingbalance: '',
+    openingtype: 'debit',
+    salesmanid: '',
+    stoplimit: '',
+    alertlimit: '',
+    creditlimitonbilldays: '',
+    applogin: 0,
+    turnoverdays: '',
+    transporterid: '',
+    excludefromtimelyreminder: 1,
+    excludefrommonthlyreminder: 1
+  };
+
+  // Only add pricelistid if it exists and is not empty
+  // Many AccountGST setups don't have pricelists configured
+  if (customerData.priceListCategory && customerData.priceListCategory.trim()) {
+    customerDataForGST.pricelistid = customerData.priceListCategory;
+  }
+
+  // Prepare the data structure for AccountGST (for base64 encoded format)
+  // Note: customercreate.php uses 'connectid' (not 'connectingkey') - this is critical!
+  const dataToEncode = {
+    connectid: process.env.ACCOUNTGST_KEY,
+    companycode: process.env.ACCOUNTGST_COMPANY,
+    link: linkUrl,
+    data: customerDataForGST
+  };
+
+  // Log the data being sent (without showing full key for security)
+  console.log('AccountGST Customer Create - Data to encode:', {
+    connectid: process.env.ACCOUNTGST_KEY ? `${process.env.ACCOUNTGST_KEY.substring(0, 20)}...` : 'NOT SET',
+    companycode: process.env.ACCOUNTGST_COMPANY,
+    link: linkUrl,
+    customerData: customerDataForGST
+  });
+
+  // Encode the data to base64
+  const jsonData = JSON.stringify(dataToEncode);
+  const base64Data = Buffer.from(jsonData).toString('base64');
+
+  console.log('AccountGST Customer Create - Base64 length:', base64Data.length);
+
+  // Send as form-urlencoded with 'data' field
+  const params = new URLSearchParams();
+  params.append('data', base64Data);
+
+  console.log('AccountGST Customer Create - URL:', `${ACCOUNTGST_BASE_URL}/customercreate.php`);
+
+  try {
+    const response = await axios.post(
+      `${ACCOUNTGST_BASE_URL}/customercreate.php`,
+      params,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    console.log('AccountGST Customer Create Response (urlencoded):', JSON.stringify(response.data, null, 2));
+
+    // If the response indicates an error, try JSON format as fallback
+    if (response.data && response.data.status === 'error') {
+      console.log('Urlencoded format failed, trying JSON format...');
+
+      // Try sending as JSON instead (using connectid, not connectingkey)
+      const jsonPayload = {
+        connectid: process.env.ACCOUNTGST_KEY,
+        companycode: process.env.ACCOUNTGST_COMPANY,
+        name: customerData.firmName || customerData.name || '',
+        gstin: customerData.gstin || '',
+        address: customerData.address || '',
+        cityname: customerData.city || '',
+        statename: customerData.state || '',
+        pin: customerData.pincode || '',
+        contact: customerData.name || '',
+        mobile: customerData.mobile || '',
+        email: customerData.email || '',
+        alternatemobile: customerData.mobile2 || '',
+        openingbalance: '',
+        openingtype: 'debit',
+        salesmanid: '',
+        stoplimit: '',
+        alertlimit: '',
+        creditlimitonbilldays: '',
+        applogin: 0,
+        turnoverdays: '',
+        transporterid: '',
+        excludefromtimelyreminder: 1,
+        excludefrommonthlyreminder: 1
+      };
+
+      // Only add pricelistid if valid
+      if (customerData.priceListCategory && customerData.priceListCategory.trim()) {
+        jsonPayload.pricelistid = customerData.priceListCategory;
+      }
+
+      const jsonResponse = await axios.post(
+        `${ACCOUNTGST_BASE_URL}/customercreate.php`,
+        jsonPayload,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('AccountGST Customer Create Response (JSON):', JSON.stringify(jsonResponse.data, null, 2));
+      return jsonResponse.data;
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('AccountGST API Error:', error.message);
+    if (error.response) {
+      console.error('AccountGST API Error Response:', JSON.stringify(error.response.data, null, 2));
+    }
+    throw error;
+  }
+};
 
 class CustomerService {
   /**
@@ -19,42 +197,49 @@ class CustomerService {
 
     // Step 2: Call AccountGST API
     try {
-      const response = await axios.post(
-        'https://ultimate.accountgst.com/admin/api/customercreate.php',
-        {
-          connectingkey: process.env.ACCOUNTGST_KEY,
-          companycode: process.env.ACCOUNTGST_COMPANY,
-          customer: {
-         name: customer.name,
-    code: customer.code || "",
-    mobile: customer.mobile || "",
-    alternatemobile: customer.alternateMobile || "",
-    email: customer.email || "",
-    address: customer.address || "",
-    gstin: customer.gstin || "",
-    cityname: customer.city || "",
-    statename: customer.state || "",
-    pin: customer.pincode || ""
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await createCustomerInAccountGST(customer.toObject());
 
       // Step 3: Update MongoDB record with AccountGST response
-      if (response.data && response.data.success && response.data.data?.customer_id) {
-        customer.accountgstId = response.data.data.customer_id;
+      // Check for various response formats
+      if (response && response.status === 'success') {
+        // Success response - check for ID
+        if (response.result?.refmasterconnectid) {
+          customer.accountgstId = response.result.refmasterconnectid;
+        } else if (response.result?.customerid) {
+          customer.accountgstId = response.result.customerid;
+        } else if (response.refmasterconnectid) {
+          customer.accountgstId = response.refmasterconnectid;
+        } else if (response.customerid) {
+          customer.accountgstId = response.customerid;
+        }
         customer.syncStatus = 'synced';
         customer.lastSyncedAt = new Date();
-      } else {
+        customer.accountgstSyncError = undefined;
+      } else if (response && response.status === 'error') {
+        // Error response - AccountGST returns 'msg' property
         customer.syncStatus = 'failed';
+        customer.accountgstSyncError = response.msg || response.message || response.error || 'API returned error status';
+      } else if (response && response.result) {
+        // Some APIs return result directly without status
+        if (response.result.refmasterconnectid || response.result.customerid) {
+          customer.accountgstId = response.result.refmasterconnectid || response.result.customerid;
+          customer.syncStatus = 'synced';
+          customer.lastSyncedAt = new Date();
+        } else {
+          customer.syncStatus = 'failed';
+          customer.accountgstSyncError = 'No customer ID returned from AccountGST';
+        }
+      } else {
+        // Unknown response format
+        customer.syncStatus = 'failed';
+        customer.accountgstSyncError = response?.message || response?.error || 'Unknown response format from AccountGST';
+        console.error('Unknown AccountGST response format:', JSON.stringify(response));
       }
     } catch (error) {
       console.error('AccountGST API Error:', error.message);
+      console.error('AccountGST API Error Stack:', error.stack);
       customer.syncStatus = 'failed';
+      customer.accountgstSyncError = error.response?.data?.message || error.message || 'Network or API error';
     }
 
     await customer.save();
@@ -63,7 +248,7 @@ class CustomerService {
     try {
       await createNotification({
         title: 'New Customer Added',
-        message: `Customer ${customer.name} has been created`,
+        message: `Customer ${customer.firmName || customer.name} has been created`,
         type: 'customer',
         userId: userId
       });
@@ -105,17 +290,59 @@ class CustomerService {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Use lean() for faster queries (returns plain objects, not Mongoose documents)
-    // Remove unnecessary populate() since name/email are not reference fields
+    // Fetch customers
     const [customers, total] = await Promise.all([
       Customer.find(query)
-        .select('name mobile email city state address outstanding status contactPerson accountgstId syncStatus createdAt')
+        .select('name firmName mobile email city state address outstanding status contactPerson accountgstId syncStatus createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .lean(), // Use lean for ~30% performance improvement
+        .lean(),
       Customer.countDocuments(query)
     ]);
+
+    // Get last order date for each customer
+    if (customers.length > 0) {
+      const customerIds = customers.map(c => c._id);
+
+      // Aggregate to get the most recent order for each customer
+      const lastOrders = await Order.aggregate([
+        {
+          $match: {
+            customerId: { $in: customerIds }
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        },
+        {
+          $group: {
+            _id: '$customerId',
+            lastOrder: { $first: '$createdAt' }
+          }
+        }
+      ]);
+
+      // Create a map of customerId to lastOrder
+      const lastOrderMap = new Map();
+      lastOrders.forEach(lo => {
+        lastOrderMap.set(lo._id.toString(), lo.lastOrder);
+      });
+
+      // Add lastOrder to each customer
+      customers.forEach(customer => {
+        const lastOrderDate = lastOrderMap.get(customer._id.toString());
+        if (lastOrderDate) {
+          customer.lastOrder = new Date(lastOrderDate).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          });
+        } else {
+          customer.lastOrder = null;
+        }
+      });
+    }
 
     return {
       customers,
@@ -206,41 +433,24 @@ class CustomerService {
     }
 
     try {
-      const response = await axios.post(
-        'https://ultimate.accountgst.com/admin/api/customercreate.php',
-        {
-          connectingkey: process.env.ACCOUNTGST_KEY,
-          companycode: process.env.ACCOUNTGST_COMPANY,
-          customer: {
-          name: customer.name,
-    code: customer.code || "",
-    mobile: customer.mobile || "",
-    alternatemobile: customer.alternateMobile || "",
-    email: customer.email || "",
-    address: customer.address || "",
-    gstin: customer.gstin || "",
-    cityname: customer.city || "",
-    statename: customer.state || "",
-    pin: customer.pincode || ""
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await createCustomerInAccountGST(customer.toObject());
 
-      if (response.data && response.data.success && response.data.data?.customer_id) {
-        customer.accountgstId = response.data.data.customer_id;
+      if (response && response.status === 'success' && response.result?.refmasterconnectid) {
+        customer.accountgstId = response.result.refmasterconnectid;
+        customer.syncStatus = 'synced';
+        customer.accountgstSyncError = undefined;
+        customer.lastSyncedAt = new Date();
+      } else if (response && response.status === 'success') {
         customer.syncStatus = 'synced';
         customer.lastSyncedAt = new Date();
       } else {
         customer.syncStatus = 'failed';
+        customer.accountgstSyncError = response?.message || 'Unknown error from AccountGST';
       }
     } catch (error) {
       console.error('AccountGST API Error:', error.message);
       customer.syncStatus = 'failed';
+      customer.accountgstSyncError = error.message;
     }
 
     await customer.save();
