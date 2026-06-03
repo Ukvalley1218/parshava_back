@@ -56,6 +56,25 @@ class InquiryService {
   }
 
   /**
+   * Get price based on customer's price list category
+   * @param {Object} product - Product document
+   * @param {String} priceListCategory - Customer's price list (T1, T2, T3, T4)
+   * @returns {Number} Appropriate price for the customer
+   */
+  getPriceForCustomer(product, priceListCategory) {
+    // Map price list to tier prices (T1 = op1/t1, T2 = op2/t2, etc.)
+    const priceMap = {
+      'T1': product.t1 || product.op1 || product.opPrice,
+      'T2': product.t2 || product.op2,
+      'T3': product.t3 || product.op3,
+      'T4': product.t4 || product.op4
+    };
+
+    // Get price based on customer's price list, fallback to opPrice -> mop -> mrp
+    return priceMap[priceListCategory] || product.opPrice || product.mop || product.mrp || 0;
+  }
+
+  /**
    * Add product to inquiry
    * @param {String} inquiryId - Inquiry ID
    * @param {String} productId - Product ID to add
@@ -64,7 +83,7 @@ class InquiryService {
    * @returns {Object} Updated inquiry
    */
   async addProductToInquiry(inquiryId, productId, qty, discount = 0) {
-    const inquiry = await Inquiry.findById(inquiryId);
+    const inquiry = await Inquiry.findById(inquiryId).populate('customerId');
     if (!inquiry) {
       throw new Error('Inquiry not found');
     }
@@ -73,6 +92,9 @@ class InquiryService {
     if (!product) {
       throw new Error('Product not found');
     }
+
+    // Get customer's price list category
+    const priceListCategory = inquiry.customerId?.priceListCategory || 'T1';
 
     // Check if product already exists in inquiry
     const existingItemIndex = inquiry.items.findIndex(
@@ -84,8 +106,8 @@ class InquiryService {
       inquiry.items[existingItemIndex].qty = qty;
       inquiry.items[existingItemIndex].discount = discount;
     } else {
-      // Use opPrice (selling price) or fallback to mop/mrp
-      const sellingPrice = product.opPrice || product.mop || product.mrp || 0;
+      // Get price based on customer's price list
+      const sellingPrice = this.getPriceForCustomer(product, priceListCategory);
 
       // Calculate item total
       const itemSubtotal = sellingPrice * qty;
@@ -535,6 +557,32 @@ async submitCart(userId, customerId, notes = '') {
     throw new Error('Customer not found');
   }
 
+  // Get customer's price list category
+  const priceListCategory = customer.priceListCategory || 'T1';
+
+  // Recalculate prices based on customer's price list
+  for (const item of cart.items) {
+    const product = await Product.findById(item.productId);
+    if (product) {
+      // Get the correct price based on customer's price list
+      const correctPrice = this.getPriceForCustomer(product, priceListCategory);
+      item.price = correctPrice;
+
+      // Recalculate item total
+      const itemSubtotal = correctPrice * item.qty;
+      const itemDiscount = itemSubtotal * (item.discount / 100);
+      const itemTaxableValue = itemSubtotal - itemDiscount;
+      item.total = Math.round((itemTaxableValue * (1 + item.gstRate / 100)) * 100) / 100;
+    }
+  }
+
+  // Recalculate all totals
+  const totals = this.calculateTotals(cart.items);
+  cart.subtotal = totals.subtotal;
+  cart.discountTotal = totals.discountTotal;
+  cart.gstTotal = totals.gstTotal;
+  cart.grandTotal = totals.grandTotal;
+
   cart.customerId = customerId;
 
   cart.customerDetails = {
@@ -545,12 +593,17 @@ async submitCart(userId, customerId, notes = '') {
     address: customer.address,
     city: customer.city,
     state: customer.state,
-    gstin: customer.gstin
+    gstin: customer.gstin,
+    priceListCategory: priceListCategory
   };
 
   cart.notes = notes;
 
-  cart.status = 'draft';
+  cart.status = 'pending';
+
+  // Generate inquiry ID
+  const inquiryCount = await Inquiry.countDocuments();
+  cart.inquiryId = `INQ${String(inquiryCount + 1).padStart(6, '0')}`;
 
   await cart.save();
 

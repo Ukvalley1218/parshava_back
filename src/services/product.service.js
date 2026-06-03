@@ -93,9 +93,10 @@ class ProductService {
    * Supports filtering by: brand, category, productType (subcategory), subcategory
    * Optimized for performance with text search and lean queries
    * @param {Object} options - Query options
+   * @param {Array} options.userAssignedBrands - Optional array of brand names to filter by (for role-based access)
    * @returns {Object} Products with pagination info
    */
-  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '' }) {
+  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '', userAssignedBrands = null }) {
     const query = {};
 
     // Use text search for better performance (uses text index)
@@ -105,16 +106,37 @@ class ProductService {
       query.$text = { $search: searchTerm };
     }
 
-    // Filter by single brand
-    if (brand) {
-      query.brand = brand;
+    // If user has assigned brands, restrict to those brands only
+    if (userAssignedBrands && userAssignedBrands.length > 0) {
+      query.brand = { $in: userAssignedBrands };
     }
 
-    // Filter by multiple brands (comma-separated)
-    if (brands) {
+    // Filter by single brand (only if within user's assigned brands)
+    if (brand) {
+      // If user has assigned brands, only allow filtering within those brands
+      if (userAssignedBrands && userAssignedBrands.length > 0) {
+        if (userAssignedBrands.includes(brand)) {
+          query.brand = brand;
+        }
+        // If brand not in assigned brands, the query will return empty (brand restriction takes precedence)
+      } else {
+        query.brand = brand;
+      }
+    }
+
+    // Filter by multiple brands (comma-separated) - only within assigned brands
+    if (brands && !brand) { // Don't apply if single brand filter is already set
       const brandArray = brands.split(',').map(b => b.trim()).filter(b => b);
       if (brandArray.length > 0) {
-        query.brand = { $in: brandArray };
+        // If user has assigned brands, only include brands that are in both lists
+        if (userAssignedBrands && userAssignedBrands.length > 0) {
+          const allowedBrands = brandArray.filter(b => userAssignedBrands.includes(b));
+          if (allowedBrands.length > 0) {
+            query.brand = { $in: allowedBrands };
+          }
+        } else {
+          query.brand = { $in: brandArray };
+        }
       }
     }
 
@@ -193,9 +215,10 @@ class ProductService {
   /**
    * Get unique brands list, optionally filtered by category
    * @param {String} category - Optional category to filter brands
+   * @param {Array} userAssignedBrands - Optional array of brand names to filter by (for role-based access)
    * @returns {Array} List of unique brands
    */
-  async getBrands(category = '') {
+  async getBrands(category = '', userAssignedBrands = null) {
     const query = { brand: { $ne: null, $ne: '' } };
 
     // Filter by category if provided
@@ -203,8 +226,33 @@ class ProductService {
       query.category = { $regex: category, $options: 'i' };
     }
 
+    // Filter by user's assigned brands if provided
+    if (userAssignedBrands && userAssignedBrands.length > 0) {
+      query.brand = { $in: userAssignedBrands };
+    }
+
     const brands = await Product.distinct('brand', query);
     return brands.filter(b => b).sort();
+  }
+
+  /**
+   * Get brands available to a user based on their role and assigned brands
+   * @param {Object} user - User object with role and assignedBrands
+   * @returns {Array} List of available brand names
+   */
+  async getUserBrands(user) {
+    // Admin and superadmin see all brands
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      return await this.getAllBrands();
+    }
+
+    // Product managers and account managers see only their assigned brands
+    if (user.assignedBrands && user.assignedBrands.length > 0) {
+      return user.assignedBrands;
+    }
+
+    // Regular users (sales users) see all brands by default
+    return await this.getAllBrands();
   }
 
   /**

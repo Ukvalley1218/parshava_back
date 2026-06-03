@@ -487,7 +487,7 @@ class CustomerService {
     }
 
     await customer.save();
-    return customer;
+    return customer.toObject();
   }
 
   /**
@@ -532,7 +532,7 @@ class CustomerService {
     }
 
     await customer.save();
-    return customer;
+    return customer.toObject();
   }
 
   /**
@@ -570,7 +570,7 @@ class CustomerService {
     }
 
     await customer.save();
-    return customer;
+    return customer.toObject();
   }
 }
 

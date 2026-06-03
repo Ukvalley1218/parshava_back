@@ -5,6 +5,7 @@ import {
   getProductById,
   getAllBrands,
   getBrands,
+  getUserBrands,
   getCategories,
   getProductTypes,
   getBrandCategories,
@@ -26,6 +27,11 @@ router.use(protect);
 // @desc    Get all brands from Brand collection
 // @access  Private
 router.get('/brands/all', getAllBrands);
+
+// @route   GET /api/products/brands/user
+// @desc    Get brands available to current user (based on role and assigned brands)
+// @access  Private
+router.get('/brands/user', getUserBrands);
 
 // @route   GET /api/products/brands
 // @desc    Get unique brands list, optionally filtered by category

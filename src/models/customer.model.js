@@ -213,6 +213,17 @@ const customerSchema = new mongoose.Schema({
 
   documents: [documentSchema],
 
+  // Categories
+  businessCategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BusinessCategory'
+  },
+
+  brandCategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BrandCategory'
+  },
+
   // Price List
   priceListCategory: {
     type: String,

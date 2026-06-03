@@ -83,7 +83,7 @@ export const getUserById = async (req, res, next) => {
  */
 export const createUser = async (req, res, next) => {
   try {
-    const { name, email, password, phone, role = 'user', isActive = true } = req.body;
+    const { name, email, password, phone, role = 'user', isActive = true, assignedBrands = [] } = req.body;
 
     // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -95,13 +95,17 @@ export const createUser = async (req, res, next) => {
       });
     }
 
+    // Clear assignedBrands for admin/superadmin (they see all)
+    const finalAssignedBrands = (role === 'admin' || role === 'superadmin') ? [] : assignedBrands;
+
     const user = await User.create({
       name,
       email: email.toLowerCase(),
       password,
       phone,
       role,
-      isActive
+      isActive,
+      assignedBrands: finalAssignedBrands
     });
 
     res.status(201).json({
@@ -114,6 +118,7 @@ export const createUser = async (req, res, next) => {
         phone: user.phone,
         role: user.role,
         isActive: user.isActive,
+        assignedBrands: user.assignedBrands,
         createdAt: user.createdAt
       }
     });
@@ -129,7 +134,7 @@ export const createUser = async (req, res, next) => {
  */
 export const updateUser = async (req, res, next) => {
   try {
-    const { name, email, password, phone, role, isActive } = req.body;
+    const { name, email, password, phone, role, isActive, assignedBrands } = req.body;
 
     const updateData = {};
 
@@ -151,6 +156,16 @@ export const updateUser = async (req, res, next) => {
     if (phone !== undefined) updateData.phone = phone;
     if (role !== undefined) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
+
+    // Handle assignedBrands
+    if (assignedBrands !== undefined) {
+      updateData.assignedBrands = assignedBrands;
+    }
+
+    // If role changed to admin/superadmin, clear assignedBrands (they see all)
+    if (role === 'admin' || role === 'superadmin') {
+      updateData.assignedBrands = [];
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,

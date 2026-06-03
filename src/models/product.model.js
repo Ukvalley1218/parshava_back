@@ -26,7 +26,7 @@ const productSchema = new mongoose.Schema({
     maxlength: 1000
   },
 
-  // Brand, Category, Subcategory - from Brand collection
+  // Brand - Independent
   brand: {
     type: String,
     trim: true,
@@ -38,6 +38,7 @@ const productSchema = new mongoose.Schema({
     ref: 'Brand'
   },
 
+  // Category - Independent
   category: {
     type: String,
     trim: true,
@@ -45,9 +46,11 @@ const productSchema = new mongoose.Schema({
   },
 
   categoryId: {
-    type: mongoose.Schema.Types.ObjectId
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category'
   },
 
+  // Subcategory - Linked to Category
   subcategory: {
     type: String,
     trim: true,
@@ -55,7 +58,20 @@ const productSchema = new mongoose.Schema({
   },
 
   subcategoryId: {
-    type: mongoose.Schema.Types.ObjectId
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subcategory'
+  },
+
+  // Series - Linked to Category (NEW)
+  series: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+
+  seriesId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Series'
   },
 
   // Basic Info
@@ -134,6 +150,45 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
 
+  // Pricing Calculator Fields
+  basePriceType: {
+    type: String,
+    enum: ['mop', 'purchase'],
+    default: 'mop'
+  },
+
+  // Discounts
+  dis1: { type: Number, min: 0, default: 0 },
+  dis1Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  dis2: { type: Number, min: 0, default: 0 },
+  dis2Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  dis3: { type: Number, min: 0, default: 0 },
+  dis3Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  dis4: { type: Number, min: 0, default: 0 },
+  dis4Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  dis5: { type: Number, min: 0, default: 0 },
+  dis5Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+
+  // Net Landing Cost (calculated)
+  nlc: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+
+  // Profit
+  profit: { type: Number, min: 0, default: 0 },
+  profitType: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+
+  // OP Prices (Output Prices)
+  op1: { type: Number, min: 0, default: 0 },
+  op1Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  op2: { type: Number, min: 0, default: 0 },
+  op2Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  op3: { type: Number, min: 0, default: 0 },
+  op3Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  op4: { type: Number, min: 0, default: 0 },
+
   // Density
   density: {
     type: String,
@@ -184,12 +239,17 @@ const productSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes for search and filter functionality
-productSchema.index({ name: 'text', partNumber: 'text', brand: 'text', category: 'text', subcategory: 'text', description: 'text' });
+productSchema.index({ name: 'text', partNumber: 'text', brand: 'text', category: 'text', subcategory: 'text', series: 'text', description: 'text' });
 productSchema.index({ brand: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ subcategory: 1 });
-productSchema.index({ brand: 1, category: 1 });
-productSchema.index({ brand: 1, category: 1, subcategory: 1 });
+productSchema.index({ series: 1 });
+productSchema.index({ brandId: 1 });
+productSchema.index({ categoryId: 1 });
+productSchema.index({ subcategoryId: 1 });
+productSchema.index({ seriesId: 1 });
+productSchema.index({ categoryId: 1, subcategoryId: 1 });
+productSchema.index({ categoryId: 1, seriesId: 1 });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ accountgstProductId: 1 });
 

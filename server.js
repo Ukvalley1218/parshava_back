@@ -17,6 +17,11 @@ import schemeRoutes from './src/routes/scheme.routes.js'
 import notificationRoutes from './src/routes/notification.routes.js'
 import adminRoutes from './src/routes/admin/index.js'
 import uploadRoutes from './src/routes/upload.routes.js'
+import categoryRoutes from './src/routes/category.routes.js'
+import subcategoryRoutes from './src/routes/subcategory.routes.js'
+import seriesRoutes from './src/routes/series.routes.js'
+import businessCategoryRoutes from './src/routes/businessCategory.routes.js'
+import brandCategoryRoutes from './src/routes/brandCategory.routes.js'
 
 dotenv.config();
 startCronJobs()
@@ -54,6 +59,11 @@ app.use("/api/schemes", schemeRoutes)
 app.use("/api/notifications", notificationRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/upload", uploadRoutes)
+app.use("/api/categories", categoryRoutes)
+app.use("/api/subcategories", subcategoryRoutes)
+app.use("/api/series", seriesRoutes)
+app.use("/api/business-categories", businessCategoryRoutes)
+app.use("/api/brand-categories", brandCategoryRoutes)
 
 // Error handling
 app.use(notFound);

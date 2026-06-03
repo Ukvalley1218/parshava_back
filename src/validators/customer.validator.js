@@ -154,3 +154,21 @@ export const customerIdValidation = Joi.object({
       'any.required': 'Customer ID is required'
     })
 });
+
+// Contact ID validation (includes both customer ID and contact ID)
+export const contactIdValidation = Joi.object({
+  id: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid customer ID format',
+      'any.required': 'Customer ID is required'
+    }),
+  contactId: Joi.string()
+    .required()
+    .pattern(/^[0-9a-fA-F]{24}$/)
+    .messages({
+      'string.pattern.base': 'Invalid contact ID format',
+      'any.required': 'Contact ID is required'
+    })
+});

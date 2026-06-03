@@ -25,6 +25,17 @@ export const getProducts = async (req, res, next) => {
   try {
     const { page, limit, search, brand, brands, category, categories, productType, subcategory } = req.query;
 
+    // Get user's assigned brands (for role-based access control)
+    const user = req.user;
+    let userAssignedBrands = null;
+
+    // If user is not admin/superadmin and has assigned brands, filter by those brands
+    if (user && user.role !== 'admin' && user.role !== 'superadmin') {
+      if (user.assignedBrands && user.assignedBrands.length > 0) {
+        userAssignedBrands = user.assignedBrands;
+      }
+    }
+
     const result = await productService.getProducts({
       page: page || 1,
       limit: limit || 10,
@@ -34,7 +45,8 @@ export const getProducts = async (req, res, next) => {
       category: category || '',
       categories: categories || '',
       productType: productType || '',
-      subcategory: subcategory || ''
+      subcategory: subcategory || '',
+      userAssignedBrands
     });
 
     res.json({
@@ -98,12 +110,30 @@ export const getBrands = async (req, res, next) => {
   try {
     const { category } = req.query;
 
+    // Get user's assigned brands (for role-based access control)
+    const user = req.user;
+    let userAssignedBrands = null;
+
+    // If user is not admin/superadmin and has assigned brands, filter by those brands
+    if (user && user.role !== 'admin' && user.role !== 'superadmin') {
+      if (user.assignedBrands && user.assignedBrands.length > 0) {
+        userAssignedBrands = user.assignedBrands;
+      }
+    }
+
     if (category) {
       // Get brands that have this category
-      const brands = await Brand.find({
+      let query = {
         active: true,
         'categories.name': { $regex: new RegExp(`^${category}$`, 'i') }
-      }).select('name').sort({ name: 1 });
+      };
+
+      // Filter by user's assigned brands if applicable
+      if (userAssignedBrands) {
+        query.name = { $in: userAssignedBrands };
+      }
+
+      const brands = await Brand.find(query).select('name').sort({ name: 1 });
 
       res.json({
         success: true,
@@ -111,7 +141,14 @@ export const getBrands = async (req, res, next) => {
       });
     } else {
       // Get all active brands
-      const brands = await Brand.find({ active: true })
+      let query = { active: true };
+
+      // Filter by user's assigned brands if applicable
+      if (userAssignedBrands) {
+        query.name = { $in: userAssignedBrands };
+      }
+
+      const brands = await Brand.find(query)
         .select('name')
         .sort({ name: 1 });
 
@@ -120,6 +157,47 @@ export const getBrands = async (req, res, next) => {
         data: brands.map(b => b.name)
       });
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get brands available to current user
+// @route   GET /api/products/brands/user
+// @access  Private
+export const getUserBrands = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    // Admin and superadmin see all brands
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      const brands = await Brand.find({ active: true })
+        .select('name')
+        .sort({ name: 1 });
+
+      return res.json({
+        success: true,
+        data: brands.map(b => b.name)
+      });
+    }
+
+    // Product managers and account managers see only their assigned brands
+    if (user.assignedBrands && user.assignedBrands.length > 0) {
+      return res.json({
+        success: true,
+        data: user.assignedBrands
+      });
+    }
+
+    // Regular users (sales users) see all brands
+    const brands = await Brand.find({ active: true })
+      .select('name')
+      .sort({ name: 1 });
+
+    res.json({
+      success: true,
+      data: brands.map(b => b.name)
+    });
   } catch (error) {
     next(error);
   }

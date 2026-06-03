@@ -127,45 +127,50 @@ class DashboardService {
    * @returns {Array} List of customers with outstanding balance
    */
   async getOutstandingCustomers() {
-  const result = await Sale.aggregate([
-  {
-    $match: {
-      pendingAmount: { $gt: 0 }
-    }
-  },
-  {
-    $group: {
-      _id: "$customerId",
-      outstandingAmount: { $sum: "$pendingAmount" },
-      totalPurchase: { $sum: "$totalValue" },
-      totalPaid: { $sum: "$receivedAmount" }
-    }
-  },
-  {
-    $lookup: {
-      from: "customers",
-      localField: "_id",
-      foreignField: "_id",
-      as: "customer"
-    }
-  },
-  {
-    $unwind: "$customer"
-  },
-  {
-    $project: {
-      _id: 0,
-      customerId: "$_id",
-      customerName: "$customer.name",
-      totalPurchase: 1,
-      totalPaid: 1,
-      outstandingAmount: 1
-    }
-  },
-  {
-    $sort: { outstandingAmount: -1 }
-  }
-]);
+    const result = await Sale.aggregate([
+      {
+        $match: {
+          pendingAmount: { $gt: 0 }
+        }
+      },
+      {
+        $group: {
+          _id: "$customerId",
+          outstandingAmount: { $sum: "$pendingAmount" },
+          totalPurchase: { $sum: "$totalValue" },
+          totalPaid: { $sum: "$receivedAmount" }
+        }
+      },
+      {
+        $lookup: {
+          from: "customers",
+          localField: "_id",
+          foreignField: "_id",
+          as: "customer"
+        }
+      },
+      {
+        $unwind: "$customer"
+      },
+      {
+        $project: {
+          _id: 0,
+          customerId: "$_id",
+          name: "$customer.name",
+          company: "$customer.firmName",
+          contact: "$customer.contactPerson",
+          city: "$customer.city",
+          mobile: "$customer.mobile",
+          outstanding: "$outstandingAmount",
+          outstandingAmount: 1,
+          totalPurchase: 1,
+          totalPaid: 1
+        }
+      },
+      {
+        $sort: { outstandingAmount: -1 }
+      }
+    ]);
 
     return result;
   }
@@ -181,7 +186,7 @@ class DashboardService {
     const result = await Sale.aggregate([
       {
         $match: {
-          paidStatus: {$in: ['unpaid', 'partial', '']},
+          paidStatus: { $in: ['unpaid', 'partial', ''] },
           invoiceDate: { $lt: thirtyDaysAgo },
           pendingAmount: { $gt: 0 }
         }
@@ -190,6 +195,7 @@ class DashboardService {
         $group: {
           _id: '$customerId',
           overdueAmount: { $sum: '$pendingAmount' },
+          outstanding: { $sum: '$pendingAmount' },
           oldestInvoice: { $min: '$invoiceDate' }
         }
       },
@@ -206,7 +212,7 @@ class DashboardService {
       },
       {
         $addFields: {
-          daysOverdue: {
+          overdueDays: {
             $floor: {
               $divide: [
                 { $subtract: [new Date(), '$oldestInvoice'] },
@@ -220,9 +226,14 @@ class DashboardService {
         $project: {
           _id: 0,
           customerId: '$_id',
-          customerName: '$customer.name',
+          name: '$customer.name',
+          company: '$customer.firmName',
+          contact: '$customer.contactPerson',
+          city: '$customer.city',
+          mobile: '$customer.mobile',
           overdueAmount: 1,
-          daysOverdue: 1
+          outstanding: '$overdueAmount',
+          overdueDays: 1
         }
       },
       {

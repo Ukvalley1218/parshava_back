@@ -25,6 +25,7 @@ import Inquiry from '../../models/inquiry.model.js';
 import Order from '../../models/order.model.js';
 import Product from '../../models/product.model.js';
 import Brand from '../../models/brand.model.js';
+import Contact from '../../models/contact.model.js';
 import orderService from '../../services/order.service.js';
 import customerService from '../../services/customer.service.js';
 import productService from '../../services/product.service.js';
@@ -779,6 +780,197 @@ router.post('/brands/import-from-products', async (req, res, next) => {
       data: { imported, skipped }
     });
   } catch (error) { next(error); }
+});
+
+// ============================================
+// CONTACTS ROUTES
+// ============================================
+
+// Get all contacts with pagination and filtering
+router.get('/contacts', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10, status, search } = req.query;
+    const query = {};
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { firmName: { $regex: search, $options: 'i' } },
+        { mobile1: { $regex: search, $options: 'i' } },
+        { mobile2: { $regex: search, $options: 'i' } },
+        { mobile3: { $regex: search, $options: 'i' } },
+        { city: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [contacts, total] = await Promise.all([
+      Contact.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Contact.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      data: contacts,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalItems: total,
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single contact
+router.get('/contacts/:id', async (req, res, next) => {
+  try {
+    const contact = await Contact.findById(req.params.id);
+    if (!contact) {
+      return res.status(404).json({ success: false, message: 'Contact not found' });
+    }
+    res.json({ success: true, data: contact });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create new contact
+router.post('/contacts', async (req, res, next) => {
+  try {
+    const {
+      name,
+      firmName,
+      designation,
+      landmark,
+      city,
+      mobile1,
+      mobile2,
+      mobile3,
+      photo,
+      aadharNumber,
+      panNumber,
+      status,
+      notes
+    } = req.body;
+
+    // Validation
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name is required'
+      });
+    }
+
+    const contact = await Contact.create({
+      name,
+      firmName,
+      designation,
+      landmark,
+      city,
+      mobile1,
+      mobile2,
+      mobile3,
+      photo,
+      aadharNumber,
+      panNumber: panNumber?.toUpperCase(),
+      status: status || 'new',
+      notes
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Contact created successfully',
+      data: contact
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update contact
+router.put('/contacts/:id', async (req, res, next) => {
+  try {
+    const {
+      name,
+      firmName,
+      designation,
+      landmark,
+      city,
+      mobile1,
+      mobile2,
+      mobile3,
+      photo,
+      aadharNumber,
+      panNumber,
+      status,
+      notes
+    } = req.body;
+
+    const updateData = {
+      name,
+      firmName,
+      designation,
+      landmark,
+      city,
+      mobile1,
+      mobile2,
+      mobile3,
+      photo,
+      aadharNumber,
+      panNumber: panNumber?.toUpperCase(),
+      status,
+      notes
+    };
+
+    // Remove undefined fields
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    const contact = await Contact.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!contact) {
+      return res.status(404).json({ success: false, message: 'Contact not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Contact updated successfully',
+      data: contact
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete contact
+router.delete('/contacts/:id', async (req, res, next) => {
+  try {
+    const contact = await Contact.findByIdAndDelete(req.params.id);
+    if (!contact) {
+      return res.status(404).json({ success: false, message: 'Contact not found' });
+    }
+    res.json({ success: true, message: 'Contact deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

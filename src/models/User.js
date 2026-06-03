@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'superadmin'],
+    enum: ['user', 'admin', 'superadmin', 'product_manager', 'account_manager'],
     default: 'user'
   },
   phone: {
@@ -37,7 +37,11 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  assignedBrands: [{
+    type: String,
+    trim: true
+  }]
 }, {
   timestamps: true
 });

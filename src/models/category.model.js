@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const brandSchema = new mongoose.Schema({
+const categorySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -15,25 +15,20 @@ const brandSchema = new mongoose.Schema({
   active: {
     type: Boolean,
     default: true
-  },
-  // Track if this brand was imported from AccountGST products
-  isImported: {
-    type: Boolean,
-    default: false
   }
 }, { timestamps: true });
 
 // Create text index for search
-brandSchema.index({ name: 'text' });
-brandSchema.index({ slug: 1 });
+categorySchema.index({ name: 'text' });
+categorySchema.index({ slug: 1 });
 
 // Generate slug before saving
-brandSchema.pre('save', function(next) {
+categorySchema.pre('save', function(next) {
   if (this.name) {
     this.slug = this.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   }
   next();
 });
 
-const Brand = mongoose.model('Brand', brandSchema);
-export default Brand;
+const Category = mongoose.model('Category', categorySchema);
+export default Category;

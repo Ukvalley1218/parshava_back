@@ -15,7 +15,8 @@ import { protect } from '../middleware/auth.middleware.js';
 import {
   createCustomerValidation,
   updateCustomerValidation,
-  customerIdValidation
+  customerIdValidation,
+  contactIdValidation
 } from '../validators/customer.validator.js';
 import { validateRequest } from '../middleware/validate.request.js';
 
@@ -85,7 +86,7 @@ router.post(
 // @access  Private
 router.patch(
   '/:id/contacts/:contactId',
-  validateRequest(customerIdValidation, 'params'),
+  validateRequest(contactIdValidation, 'params'),
   updateContactPerson
 );
 
@@ -94,7 +95,7 @@ router.patch(
 // @access  Private
 router.delete(
   '/:id/contacts/:contactId',
-  validateRequest(customerIdValidation, 'params'),
+  validateRequest(contactIdValidation, 'params'),
   deleteContactPerson
 );
 
