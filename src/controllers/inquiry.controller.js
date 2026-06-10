@@ -30,7 +30,8 @@ export const getInquiries = async (req, res, next) => {
     const result = await inquiryService.getInquiries({
       page: page || 1,
       limit: limit || 10,
-      status: status || ''
+      status: status || '',
+      userId: req.user._id // Filter by logged-in user
     });
 
     res.json({
@@ -48,7 +49,7 @@ export const getInquiries = async (req, res, next) => {
 // @access  Private
 export const getInquiryById = async (req, res, next) => {
   try {
-    const inquiry = await inquiryService.getInquiryById(req.params.id);
+    const inquiry = await inquiryService.getInquiryById(req.params.id, req.user._id);
 
     res.json({
       success: true,
@@ -343,13 +344,20 @@ export const clearCart = async (req, res, next) => {
 // @access  Private
 export const submitCart = async (req, res, next) => {
   try {
-    const { customerId, notes } = req.body;
+    console.log('=== SUBMIT CART REQUEST ===');
+    console.log('Full req.body:', JSON.stringify(req.body, null, 2));
+    const { customerId, notes, contactPerson } = req.body;
+    console.log('Extracted values:', { customerId, notes, contactPerson });
+    console.log('contactPerson type:', typeof contactPerson);
+    console.log('contactPerson value:', contactPerson);
 
     const inquiry = await inquiryService.submitCart(
       req.user._id,
       customerId,
-      notes
+      notes,
+      contactPerson
     );
+    console.log('Created inquiry with contactPerson:', inquiry.contactPerson);
 
     res.json({
       success: true,

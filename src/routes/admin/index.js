@@ -373,7 +373,7 @@ router.get('/products/:id', async (req, res, next) => {
 router.post('/products', async (req, res, next) => {
   try {
     // Convert empty ObjectId strings to undefined to prevent CastError
-    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId'];
+    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId', 'seriesId'];
     const processedBody = { ...req.body };
 
     objectIdFields.forEach(field => {
@@ -399,6 +399,31 @@ router.post('/products', async (req, res, next) => {
       mrp: processedBody.mrp,
       mop: processedBody.mop,
       purchasePrice: processedBody.purchasePrice,
+      marketPrice: processedBody.marketPrice,
+      // Pricing calculator fields
+      basePriceType: processedBody.basePriceType,
+      dis1: processedBody.dis1,
+      dis1Type: processedBody.dis1Type,
+      dis2: processedBody.dis2,
+      dis2Type: processedBody.dis2Type,
+      dis3: processedBody.dis3,
+      dis3Type: processedBody.dis3Type,
+      dis4: processedBody.dis4,
+      dis4Type: processedBody.dis4Type,
+      dis5: processedBody.dis5,
+      dis5Type: processedBody.dis5Type,
+      nlc: processedBody.nlc,
+      profit: processedBody.profit,
+      profitType: processedBody.profitType,
+      op1: processedBody.op1,
+      op1Type: processedBody.op1Type,
+      op2: processedBody.op2,
+      op2Type: processedBody.op2Type,
+      op3: processedBody.op3,
+      op3Type: processedBody.op3Type,
+      op4: processedBody.op4,
+      op4Type: processedBody.op4Type,
+      // Legacy fields
       cnlc: processedBody.cnlc,
       mnlc: processedBody.mnlc,
       opPrice: processedBody.opPrice,
@@ -408,6 +433,8 @@ router.post('/products', async (req, res, next) => {
       t4: processedBody.t4,
       bottomPrice: processedBody.bottomPrice,
       density: processedBody.density || 'Regular',
+      boxSize: processedBody.boxSize,
+      procurement: processedBody.procurement,
       stock: processedBody.stock || 0,
       active: processedBody.active !== undefined ? processedBody.active : true
     };
@@ -420,9 +447,9 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    // Convert empty ObjectId strings to null to prevent CastError
+    // Convert empty ObjectId strings to undefined to prevent CastError
     const updateData = { ...req.body };
-    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId'];
+    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId', 'seriesId'];
 
     objectIdFields.forEach(field => {
       if (updateData[field] === '' || updateData[field] === null) {
@@ -789,11 +816,15 @@ router.post('/brands/import-from-products', async (req, res, next) => {
 // Get all contacts with pagination and filtering
 router.get('/contacts', async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { page = 1, limit = 10, status, search, customer } = req.query;
     const query = {};
 
     if (status && status !== 'all') {
       query.status = status;
+    }
+
+    if (customer) {
+      query.customer = customer;
     }
 
     if (search) {
@@ -811,6 +842,7 @@ router.get('/contacts', async (req, res, next) => {
 
     const [contacts, total] = await Promise.all([
       Contact.find(query)
+        .populate('customer', 'firmName name mobile')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -835,7 +867,7 @@ router.get('/contacts', async (req, res, next) => {
 // Get single contact
 router.get('/contacts/:id', async (req, res, next) => {
   try {
-    const contact = await Contact.findById(req.params.id);
+    const contact = await Contact.findById(req.params.id).populate('customer', 'firmName name mobile');
     if (!contact) {
       return res.status(404).json({ success: false, message: 'Contact not found' });
     }
@@ -850,16 +882,13 @@ router.post('/contacts', async (req, res, next) => {
   try {
     const {
       name,
+      customer,
       firmName,
       designation,
-      landmark,
-      city,
       mobile1,
-      mobile2,
-      mobile3,
-      photo,
-      aadharNumber,
-      panNumber,
+      email,
+      isPrimary,
+      isWhatsApp,
       status,
       notes
     } = req.body;
@@ -872,21 +901,65 @@ router.post('/contacts', async (req, res, next) => {
       });
     }
 
+    // If customer is provided, fetch firmName from customer
+    let finalFirmName = firmName;
+    let customerDoc = null;
+    if (customer) {
+      customerDoc = await Customer.findById(customer);
+      if (customerDoc) {
+        finalFirmName = customerDoc.firmName || customerDoc.name;
+      }
+    }
+
     const contact = await Contact.create({
       name,
-      firmName,
+      customer: customer || null,
+      firmName: finalFirmName,
       designation,
-      landmark,
-      city,
       mobile1,
-      mobile2,
-      mobile3,
-      photo,
-      aadharNumber,
-      panNumber: panNumber?.toUpperCase(),
+      email,
+      isPrimary: isPrimary || false,
+      isWhatsApp: isWhatsApp !== false,
       status: status || 'new',
       notes
     });
+
+    // Populate customer before returning
+    await contact.populate('customer', 'firmName name mobile');
+
+    // If linked to a customer, also add to customer's contactPersons array
+    if (customerDoc) {
+      try {
+        // Check if this contact already exists in contactPersons by name OR mobile
+        // If same name exists, it's a duplicate - don't add
+        // If same mobile but different name, it's a different contact - add it
+        const existingByNameIndex = customerDoc.contactPersons.findIndex(
+          cp => cp.name && cp.name.toLowerCase() === name.toLowerCase()
+        );
+
+        if (existingByNameIndex === -1) {
+          // If this is primary, unmark other contacts
+          if (isPrimary) {
+            customerDoc.contactPersons.forEach(cp => {
+              cp.isPrimary = false;
+            });
+          }
+          // Add new contact person
+          customerDoc.contactPersons.push({
+            name,
+            designation,
+            mobile: mobile1,
+            email,
+            isPrimary: isPrimary || customerDoc.contactPersons.length === 0,
+            isWhatsApp: isWhatsApp !== false
+          });
+          await customerDoc.save();
+        }
+      } catch (syncError) {
+        console.error('Failed to sync contact to customer:', syncError.message);
+        // Don't fail the main operation
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -903,32 +976,39 @@ router.put('/contacts/:id', async (req, res, next) => {
   try {
     const {
       name,
+      customer,
       firmName,
       designation,
-      landmark,
-      city,
       mobile1,
-      mobile2,
-      mobile3,
-      photo,
-      aadharNumber,
-      panNumber,
+      email,
+      isPrimary,
+      isWhatsApp,
       status,
       notes
     } = req.body;
 
+    // Get the existing contact before update
+    const existingContact = await Contact.findById(req.params.id);
+
+    // If customer is provided, fetch firmName from customer
+    let finalFirmName = firmName;
+    let customerDoc = null;
+    if (customer) {
+      customerDoc = await Customer.findById(customer);
+      if (customerDoc) {
+        finalFirmName = customerDoc.firmName || customerDoc.name;
+      }
+    }
+
     const updateData = {
       name,
-      firmName,
+      customer: customer || null,
+      firmName: finalFirmName,
       designation,
-      landmark,
-      city,
       mobile1,
-      mobile2,
-      mobile3,
-      photo,
-      aadharNumber,
-      panNumber: panNumber?.toUpperCase(),
+      email,
+      isPrimary: isPrimary || false,
+      isWhatsApp: isWhatsApp !== false,
       status,
       notes
     };
@@ -944,10 +1024,66 @@ router.put('/contacts/:id', async (req, res, next) => {
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    );
+    ).populate('customer', 'firmName name mobile');
 
     if (!contact) {
       return res.status(404).json({ success: false, message: 'Contact not found' });
+    }
+
+    // Sync changes to customer's contactPersons array
+    try {
+      // If the contact was previously linked to a different customer, update old customer
+      if (existingContact && existingContact.customer && existingContact.customer.toString() !== (customer || '').toString()) {
+        const oldCustomer = await Customer.findById(existingContact.customer);
+        if (oldCustomer && existingContact.name) {
+          // Remove from old customer's contactPersons by name
+          oldCustomer.contactPersons = oldCustomer.contactPersons.filter(
+            cp => !cp.name || cp.name.toLowerCase() !== existingContact.name.toLowerCase()
+          );
+          await oldCustomer.save();
+        }
+      }
+
+      // If linked to a new customer, update their contactPersons
+      if (customerDoc) {
+        // Find existing by name
+        const existingContactIndex = customerDoc.contactPersons.findIndex(
+          cp => cp.name && name && cp.name.toLowerCase() === name.toLowerCase()
+        );
+
+        // If this is primary, unmark other contacts
+        if (isPrimary) {
+          customerDoc.contactPersons.forEach((cp, index) => {
+            if (index !== existingContactIndex) {
+              cp.isPrimary = false;
+            }
+          });
+        }
+
+        if (existingContactIndex !== -1) {
+          // Update existing contact person
+          customerDoc.contactPersons[existingContactIndex].name = name;
+          customerDoc.contactPersons[existingContactIndex].designation = designation;
+          customerDoc.contactPersons[existingContactIndex].mobile = mobile1;
+          customerDoc.contactPersons[existingContactIndex].email = email;
+          customerDoc.contactPersons[existingContactIndex].isPrimary = isPrimary || false;
+          customerDoc.contactPersons[existingContactIndex].isWhatsApp = isWhatsApp !== false;
+        } else {
+          // Add new contact person
+          customerDoc.contactPersons.push({
+            name,
+            designation,
+            mobile: mobile1,
+            email,
+            isPrimary: isPrimary || customerDoc.contactPersons.length === 0,
+            isWhatsApp: isWhatsApp !== false
+          });
+        }
+        await customerDoc.save();
+      }
+    } catch (syncError) {
+      console.error('Failed to sync contact to customer:', syncError.message);
+      // Don't fail the main operation
     }
 
     res.json({
@@ -963,10 +1099,34 @@ router.put('/contacts/:id', async (req, res, next) => {
 // Delete contact
 router.delete('/contacts/:id', async (req, res, next) => {
   try {
-    const contact = await Contact.findByIdAndDelete(req.params.id);
+    const contact = await Contact.findById(req.params.id);
     if (!contact) {
       return res.status(404).json({ success: false, message: 'Contact not found' });
     }
+
+    // Store contact info before deletion
+    const customerId = contact.customer;
+    const contactName = contact.name;
+
+    // Delete the contact
+    await Contact.findByIdAndDelete(req.params.id);
+
+    // If linked to a customer, also remove from customer's contactPersons array
+    if (customerId && contactName) {
+      try {
+        const customerDoc = await Customer.findById(customerId);
+        if (customerDoc) {
+          customerDoc.contactPersons = customerDoc.contactPersons.filter(
+            cp => !cp.name || cp.name.toLowerCase() !== contactName.toLowerCase()
+          );
+          await customerDoc.save();
+        }
+      } catch (syncError) {
+        console.error('Failed to sync contact deletion to customer:', syncError.message);
+        // Don't fail the main operation
+      }
+    }
+
     res.json({ success: true, message: 'Contact deleted successfully' });
   } catch (error) {
     next(error);

@@ -151,6 +151,22 @@ export const createProductValidation = Joi.object({
     .optional()
     .messages({
       'number.min': 'Stock cannot be negative'
+    }),
+  boxSize: Joi.string()
+    .trim()
+    .max(100)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Box size cannot exceed 100 characters'
+    }),
+  procurement: Joi.string()
+    .trim()
+    .max(200)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Procurement cannot exceed 200 characters'
     })
 });
 
@@ -243,5 +259,21 @@ export const updateProductValidation = Joi.object({
     .optional()
     .messages({
       'number.min': 'Stock cannot be negative'
+    }),
+  boxSize: Joi.string()
+    .trim()
+    .max(100)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Box size cannot exceed 100 characters'
+    }),
+  procurement: Joi.string()
+    .trim()
+    .max(200)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Procurement cannot exceed 200 characters'
     })
 });

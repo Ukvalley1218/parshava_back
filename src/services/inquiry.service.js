@@ -217,11 +217,20 @@ class InquiryService {
 
   /**
    * Get all inquiries with pagination and filters
+   * Only returns inquiries that have been submitted (have a customer assigned)
+   * Draft carts without customers are considered abandoned and not shown
    * @param {Object} options - Query options
    * @returns {Object} Inquiries with pagination info
    */
-  async getInquiries({ page = 1, limit = 10, status = '' }) {
-    const query = {};
+  async getInquiries({ page = 1, limit = 10, status = '', userId = null }) {
+    const query = {
+      customerId: { $exists: true, $ne: null } // Only show inquiries with a customer assigned
+    };
+
+    // Filter by user - only show user's own inquiries
+    if (userId) {
+      query.createdBy = userId;
+    }
 
     // Filter by status
     if (status) {
@@ -254,10 +263,18 @@ class InquiryService {
   /**
    * Get inquiry by ID
    * @param {String} inquiryId - Inquiry ID
+   * @param {String} userId - User ID (optional, for authorization)
    * @returns {Object} Inquiry details
    */
-  async getInquiryById(inquiryId) {
-    const inquiry = await Inquiry.findById(inquiryId)
+  async getInquiryById(inquiryId, userId = null) {
+    const query = { _id: inquiryId };
+
+    // If userId is provided, only return inquiry if it belongs to the user
+    if (userId) {
+      query.createdBy = userId;
+    }
+
+    const inquiry = await Inquiry.findOne(query)
       .populate('customerId', 'name mobile email address city state gstin')
       .populate('createdBy', 'name email');
 
@@ -537,79 +554,98 @@ class InquiryService {
    * @param {String} userId - User ID
    * @param {String} customerId - Customer ID
    * @param {String} notes - Optional notes
+   * @param {Object} contactPerson - Optional contact person details
    * @returns {Object} Created inquiry
    */
-async submitCart(userId, customerId, notes = '') {
+  async submitCart(userId, customerId, notes = '', contactPerson = null) {
+    const cart = await Inquiry.findOne({
+      createdBy: userId,
+      status: 'draft',
+      customerId: { $exists: false }
+    });
 
-  const cart = await Inquiry.findOne({
-    createdBy: userId,
-    status: 'draft',
-    customerId: { $exists: false }
-  });
-
-  if (!cart || cart.items.length === 0) {
-    throw new Error('Cart is empty');
-  }
-
-  const customer = await Customer.findById(customerId);
-
-  if (!customer) {
-    throw new Error('Customer not found');
-  }
-
-  // Get customer's price list category
-  const priceListCategory = customer.priceListCategory || 'T1';
-
-  // Recalculate prices based on customer's price list
-  for (const item of cart.items) {
-    const product = await Product.findById(item.productId);
-    if (product) {
-      // Get the correct price based on customer's price list
-      const correctPrice = this.getPriceForCustomer(product, priceListCategory);
-      item.price = correctPrice;
-
-      // Recalculate item total
-      const itemSubtotal = correctPrice * item.qty;
-      const itemDiscount = itemSubtotal * (item.discount / 100);
-      const itemTaxableValue = itemSubtotal - itemDiscount;
-      item.total = Math.round((itemTaxableValue * (1 + item.gstRate / 100)) * 100) / 100;
+    if (!cart || cart.items.length === 0) {
+      throw new Error('Cart is empty');
     }
+
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // Get customer's price list category
+    const priceListCategory = customer.priceListCategory || 'T1';
+
+    // Recalculate prices based on customer's price list
+    for (const item of cart.items) {
+      const product = await Product.findById(item.productId);
+      if (product) {
+        // Get the correct price based on customer's price list
+        const correctPrice = this.getPriceForCustomer(product, priceListCategory);
+        item.price = correctPrice;
+
+        // Recalculate item total
+        const itemSubtotal = correctPrice * item.qty;
+        const itemDiscount = itemSubtotal * (item.discount / 100);
+        const itemTaxableValue = itemSubtotal - itemDiscount;
+        item.total = Math.round((itemTaxableValue * (1 + item.gstRate / 100)) * 100) / 100;
+      }
+    }
+
+    // Recalculate all totals
+    const totals = this.calculateTotals(cart.items);
+    cart.subtotal = totals.subtotal;
+    cart.discountTotal = totals.discountTotal;
+    cart.gstTotal = totals.gstTotal;
+    cart.grandTotal = totals.grandTotal;
+
+    cart.customerId = customerId;
+
+    cart.customerDetails = {
+      name: customer.name || customer.firmName || 'Unknown',
+      firmName: customer.firmName || customer.name || 'Unknown',
+      mobile: customer.mobile,
+      email: customer.email,
+      address: customer.address,
+      city: customer.city,
+      state: customer.state,
+      gstin: customer.gstin,
+      priceListCategory: priceListCategory
+    };
+
+    // Store contact person if provided
+    if (contactPerson) {
+      console.log('Saving contact person:', JSON.stringify(contactPerson, null, 2));
+      cart.contactPerson = {
+        name: contactPerson.name || '',
+        designation: contactPerson.designation || '',
+        mobile: contactPerson.mobile || '',
+        email: contactPerson.email || '',
+        isPrimary: contactPerson.isPrimary || false,
+        isWhatsApp: contactPerson.isWhatsApp !== false
+      };
+      console.log('Cart contactPerson after assignment:', JSON.stringify(cart.contactPerson, null, 2));
+    } else {
+      console.log('No contact person provided');
+    }
+
+    cart.notes = notes;
+
+    cart.status = 'pending';
+
+    // Generate inquiry ID
+    const inquiryCount = await Inquiry.countDocuments();
+    cart.inquiryId = `INQ${String(inquiryCount + 1).padStart(6, '0')}`;
+
+    await cart.save();
+    console.log('Cart after save, contactPerson:', JSON.stringify(cart.contactPerson, null, 2));
+
+    // Populate customerId before returning
+    const result = await cart.populate('customerId', 'name mobile email');
+    console.log('Final result contactPerson:', JSON.stringify(result.contactPerson, null, 2));
+    return result;
   }
-
-  // Recalculate all totals
-  const totals = this.calculateTotals(cart.items);
-  cart.subtotal = totals.subtotal;
-  cart.discountTotal = totals.discountTotal;
-  cart.gstTotal = totals.gstTotal;
-  cart.grandTotal = totals.grandTotal;
-
-  cart.customerId = customerId;
-
-  cart.customerDetails = {
-    name: customer.name || customer.firmName || 'Unknown',
-    firmName: customer.firmName || customer.name || 'Unknown',
-    mobile: customer.mobile,
-    email: customer.email,
-    address: customer.address,
-    city: customer.city,
-    state: customer.state,
-    gstin: customer.gstin,
-    priceListCategory: priceListCategory
-  };
-
-  cart.notes = notes;
-
-  cart.status = 'pending';
-
-  // Generate inquiry ID
-  const inquiryCount = await Inquiry.countDocuments();
-  cart.inquiryId = `INQ${String(inquiryCount + 1).padStart(6, '0')}`;
-
-  await cart.save();
-
-  // Populate customerId before returning
-  return cart.populate('customerId', 'name mobile email');
-}
 
   /**
    * Format cart response for frontend

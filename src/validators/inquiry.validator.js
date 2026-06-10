@@ -175,5 +175,13 @@ export const submitCartValidation = Joi.object({
     .max(500)
     .messages({
       'string.max': 'Notes cannot exceed 500 characters'
-    })
+    }),
+  contactPerson: Joi.object({
+    name: Joi.string().allow(''),
+    designation: Joi.string().allow(''),
+    mobile: Joi.string().allow(''),
+    email: Joi.string().allow(''),
+    isPrimary: Joi.boolean(),
+    isWhatsApp: Joi.boolean()
+  }).allow(null).optional()
 });

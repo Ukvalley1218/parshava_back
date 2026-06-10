@@ -434,8 +434,13 @@ class OrderService {
    * @param {Object} options - Query options
    * @returns {Object} Orders with pagination info
    */
-  async getOrders({ page = 1, limit = 10, status = '' }) {
+  async getOrders({ page = 1, limit = 10, status = '', userId = null }) {
     const query = {};
+
+    // Filter by user - only show user's own orders
+    if (userId) {
+      query.createdBy = userId;
+    }
 
     // Filter by status
     if (status) {
@@ -468,10 +473,18 @@ class OrderService {
   /**
    * Get order by ID
    * @param {String} orderId - Order ID
+   * @param {String} userId - User ID (optional, for authorization)
    * @returns {Object} Order details
    */
-  async getOrderById(orderId) {
-    const order = await Order.findById(orderId)
+  async getOrderById(orderId, userId = null) {
+    const query = { _id: orderId };
+
+    // If userId is provided, only return order if it belongs to the user
+    if (userId) {
+      query.createdBy = userId;
+    }
+
+    const order = await Order.findOne(query)
       .populate('customerId', 'name firmName mobile email gstin address city state pincode')
       .populate('inquiryId')
       .populate('createdBy', 'name email');

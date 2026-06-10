@@ -5,7 +5,7 @@ import dashboardService from '../services/dashboard.service.js';
 // @access  Private
 export const getDashboardSummary = async (req, res, next) => {
   try {
-    const summary = await dashboardService.getDashboardSummary();
+    const summary = await dashboardService.getDashboardSummary(req.user._id);
 
     res.json({
       success: true,

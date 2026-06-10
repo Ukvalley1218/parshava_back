@@ -9,7 +9,14 @@ const contactSchema = new mongoose.Schema({
     maxlength: 100
   },
 
-  // Firm Name
+  // Linked Customer/Firm (optional - links to Customer collection)
+  customer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
+    default: null
+  },
+
+  // Firm Name (for backward compatibility and manual entry)
   firmName: {
     type: String,
     trim: true,
@@ -84,6 +91,25 @@ const contactSchema = new mongoose.Schema({
     default: 'new'
   },
 
+  // Email
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+
+  // Is Primary Contact
+  isPrimary: {
+    type: Boolean,
+    default: false
+  },
+
+  // Has WhatsApp
+  isWhatsApp: {
+    type: Boolean,
+    default: true
+  },
+
   // Internal Notes
   notes: {
     type: String,
@@ -105,5 +131,6 @@ contactSchema.index({
 // Other Indexes
 contactSchema.index({ status: 1 });
 contactSchema.index({ createdAt: -1 });
+contactSchema.index({ customer: 1 });
 
 export default mongoose.model('Contact', contactSchema);

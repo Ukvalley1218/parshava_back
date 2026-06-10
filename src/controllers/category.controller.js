@@ -1,14 +1,54 @@
 import Category from '../models/category.model.js';
 import Subcategory from '../models/subcategory.model.js';
 import Series from '../models/series.model.js';
+import Product from '../models/product.model.js';
 
 // @desc    Get all categories
 // @route   GET /api/categories
 // @access  Private
 export const getCategories = async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, search, active } = req.query;
+    const { page = 1, limit = 50, search, active, brand } = req.query;
 
+    // If brand is provided, get categories that have products for that brand
+    if (brand) {
+      const categoryNames = await Product.distinct('category', {
+        brand: { $regex: new RegExp(`^${brand}$`, 'i') },
+        active: { $ne: false }
+      });
+
+      // Get category documents for the found category names
+      const query = {
+        name: { $in: categoryNames }
+      };
+
+      if (search) {
+        query.name = { $regex: search, $options: 'i' };
+      }
+
+      if (active !== undefined) {
+        query.active = active === 'true';
+      }
+
+      const total = await Category.countDocuments(query);
+      const categories = await Category.find(query)
+        .sort({ name: 1 })
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+      return res.json({
+        success: true,
+        data: categories,
+        pagination: {
+          totalItems: total,
+          totalPages: Math.ceil(total / limit),
+          currentPage: parseInt(page),
+          limit: parseInt(limit)
+        }
+      });
+    }
+
+    // Original behavior - get all categories
     const query = {};
 
     if (search) {

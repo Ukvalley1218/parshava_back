@@ -86,7 +86,22 @@ export const getProductById = async (req, res, next) => {
 // @access  Private
 export const getAllBrands = async (req, res, next) => {
   try {
-    const brands = await Brand.find({ active: true })
+    const user = req.user;
+    let query = { active: true };
+
+    // If user is not admin/superadmin and has assigned brands,
+    // show only assigned brands
+    if (
+      user &&
+      user.role !== 'admin' &&
+      user.role !== 'superadmin' &&
+      user.assignedBrands &&
+      user.assignedBrands.length > 0
+    ) {
+      query.name = { $in: user.assignedBrands };
+    }
+
+    const brands = await Brand.find(query)
       .select('name categories')
       .sort({ name: 1 });
 

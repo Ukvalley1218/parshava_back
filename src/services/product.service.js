@@ -99,11 +99,19 @@ class ProductService {
   async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '', userAssignedBrands = null }) {
     const query = {};
 
-    // Use text search for better performance (uses text index)
+    // Use regex search for partial matching (e.g., "bar" matches "Barcode Printer")
     if (search && search.trim()) {
       const searchTerm = search.trim();
-      // Use text search for fast full-text matching
-      query.$text = { $search: searchTerm };
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
+      query.$or = [
+        { name: searchRegex },
+        { partNumber: searchRegex },
+        { brand: searchRegex },
+        { category: searchRegex },
+        { subcategory: searchRegex },
+        { series: searchRegex },
+        { description: searchRegex }
+      ];
     }
 
     // If user has assigned brands, restrict to those brands only
@@ -168,7 +176,7 @@ class ProductService {
     // Use lean() for faster queries (~30% performance improvement)
     const [products, total] = await Promise.all([
       Product.find(query)
-        .select('name partNumber brand category subcategory productType imageUrl mrp mop purchasePrice cnlc mnlc opPrice t1 t2 t3 t4 bottomPrice gstRate hsn unit stock density description accountgstProductId syncStatus createdAt')
+        .select('name partNumber brand brandId category categoryId subcategory subcategoryId series seriesId productType imageUrl mrp mop purchasePrice marketPrice basePriceType dis1 dis1Type dis2 dis2Type dis3 dis3Type dis4 dis4Type dis5 dis5Type nlc profit profitType op1 op1Type op2 op2Type op3 op3Type op4 op4Type cnlc mnlc opPrice t1 t2 t3 t4 bottomPrice gstRate hsn unit stock density description boxSize procurement accountgstProductId syncStatus createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))

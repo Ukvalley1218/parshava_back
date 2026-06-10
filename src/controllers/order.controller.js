@@ -97,7 +97,8 @@ export const getOrders = async (req, res, next) => {
     const result = await orderService.getOrders({
       page: page || 1,
       limit: limit || 10,
-      status: status || ''
+      status: status || '',
+      userId: req.user._id // Filter by logged-in user
     });
 
     res.json({
@@ -115,7 +116,7 @@ export const getOrders = async (req, res, next) => {
 // @access  Private
 export const getOrderById = async (req, res, next) => {
   try {
-    const order = await orderService.getOrderById(req.params.id);
+    const order = await orderService.getOrderById(req.params.id, req.user._id);
 
     res.json({
       success: true,

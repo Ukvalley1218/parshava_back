@@ -70,9 +70,18 @@ const inquirySchema = new mongoose.Schema({
   state: String,
   gstin: String
 },
+  // Contact person for this inquiry/quotation
+  contactPerson: {
+    name: String,
+    designation: String,
+    mobile: String,
+    email: String,
+    isPrimary: Boolean,
+    isWhatsApp: Boolean
+  },
   status: {
     type: String,
-    enum: ['draft', 'converted', 'cancelled'],
+    enum: ['draft', 'pending', 'converted', 'cancelled'],
     default: 'draft'
   },
   items: [inquiryItemSchema],

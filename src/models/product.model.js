@@ -109,6 +109,11 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
 
+  marketPrice: {
+    type: Number,
+    min: 0
+  },
+
   cnlc: {
     type: Number,
     min: 0
@@ -153,7 +158,7 @@ const productSchema = new mongoose.Schema({
   // Pricing Calculator Fields
   basePriceType: {
     type: String,
-    enum: ['mop', 'purchase'],
+    enum: ['mop', 'purchase', 'market'],
     default: 'mop'
   },
 
@@ -194,6 +199,20 @@ const productSchema = new mongoose.Schema({
     type: String,
     enum: ['Regular', 'B2B', 'Back to Back'],
     default: 'Regular'
+  },
+
+  // Box Size (dimensions or size info)
+  boxSize: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+
+  // Procurement info (purchase source, lead time, etc.)
+  procurement: {
+    type: String,
+    trim: true,
+    maxlength: 200
   },
 
   // Stock

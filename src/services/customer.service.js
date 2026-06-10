@@ -1,6 +1,9 @@
 import axios from 'axios';
+import mongoose from 'mongoose';
 import Customer from '../models/customer.model.js';
 import Order from '../models/order.model.js';
+import Contact from '../models/contact.model.js';
+import Sale from '../models/sale.model.js';
 import { createNotification } from './notification.service.js';
 
 // Base URL for AccountGST API
@@ -261,18 +264,29 @@ class CustomerService {
 
   /**
    * Get all customers with pagination, search, and filters
-   * Optimized for performance with text search and lean queries
+   * Optimized for performance with regex search for partial matching
    * @param {Object} options - Query options
    * @returns {Object} Customers with pagination info
    */
   async getCustomers({ page = 1, limit = 10, search = '', city = '', cities = '' }) {
     const query = {};
 
-    // Use text search for better performance (uses text index)
+    // Use regex search for partial matching (e.g., "bar" matches "Barcode Printer")
     if (search && search.trim()) {
       const searchTerm = search.trim();
-      // Use text search for fast full-text matching
-      query.$text = { $search: searchTerm };
+      const searchRegex = { $regex: searchTerm, $options: 'i' };
+      query.$or = [
+        { name: searchRegex },
+        { firmName: searchRegex },
+        { mobile: searchRegex },
+        { mobile2: searchRegex },
+        { mobile3: searchRegex },
+        { email: searchRegex },
+        { city: searchRegex },
+        { state: searchRegex },
+        { gstin: searchRegex },
+        { panNumber: searchRegex }
+      ];
     }
 
     // Filter by single city (backward compatibility)
@@ -376,12 +390,86 @@ class CustomerService {
       throw new Error('Customer not found');
     }
 
-    // Return customer with total purchase and outstanding
-    // Note: In a real application, you would calculate total purchase from orders/invoices
+    // Calculate total purchase from orders
+    const orders = await Order.find({ customerId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Calculate total purchase amount from all orders
+    const totalPurchase = orders.reduce((sum, order) => {
+      return sum + (order.totalAmount || order.grandTotal || 0);
+    }, 0);
+
+    // Calculate outstanding from Sale collection
+    const salesResult = await Sale.aggregate([
+      {
+        $match: {
+          customerId: new mongoose.Types.ObjectId(customerId),
+          pendingAmount: { $gt: 0 }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalOutstanding: { $sum: '$pendingAmount' },
+          oldestInvoice: { $min: '$invoiceDate' }
+        }
+      }
+    ]);
+
+    const outstanding = salesResult[0]?.totalOutstanding || 0;
+    const oldestInvoiceDate = salesResult[0]?.oldestInvoice || null;
+
+    // Get last 3 purchases (orders)
+    const lastPurchases = orders.slice(0, 3).map(order => ({
+      _id: order._id,
+      orderId: order.orderId,
+      name: order.orderId || `Order ${order._id?.toString()?.slice(-6) || 'N/A'}`,
+      productName: order.products?.[0]?.productName || order.products?.[0]?.name || 'Multiple items',
+      date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }) : 'N/A',
+      orderDate: order.createdAt,
+      qty: order.products?.reduce((sum, p) => sum + (p.qty || 0), 0) || 0,
+      quantity: order.products?.reduce((sum, p) => sum + (p.qty || 0), 0) || 0,
+      amount: order.totalAmount || order.grandTotal || 0,
+      totalAmount: order.totalAmount || order.grandTotal || 0
+    }));
+
+    // Calculate overdue days based on oldest unpaid invoice
+    let overdueDays = 0;
+    if (outstanding > 0 && oldestInvoiceDate) {
+      const invoiceDate = new Date(oldestInvoiceDate);
+      const today = new Date();
+      const diffTime = today - invoiceDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      overdueDays = diffDays > 0 ? diffDays : 0;
+    }
+
+    // Get last order date formatted
+    const lastOrderDate = orders.length > 0 && orders[0].createdAt
+      ? new Date(orders[0].createdAt).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      : null;
+
     return {
-      customer,
-      totalPurchase: 0, // TODO: Calculate from orders/invoices collection
-      outstanding: customer.outstanding
+      customer: {
+        ...customer,
+        lastOrderDate,
+        lastPurchases,
+        totalPurchase,
+        overdueDays,
+        outstanding
+      },
+      totalPurchase,
+      outstanding,
+      lastPurchases,
+      overdueDays
     };
   }
 
@@ -487,6 +575,34 @@ class CustomerService {
     }
 
     await customer.save();
+
+    // Also create a Contact document for admin panel
+    try {
+      // Check if contact already exists by customer and name (not by mobile, since same mobile can have different contacts)
+      const existingContact = await Contact.findOne({
+        customer: customerId,
+        name: { $regex: new RegExp(`^${contactData.name}$`, 'i') }
+      });
+
+      if (!existingContact) {
+        await Contact.create({
+          name: contactData.name,
+          customer: customerId,
+          firmName: customer.firmName || customer.name,
+          designation: contactData.designation,
+          mobile1: contactData.mobile,
+          email: contactData.email,
+          isPrimary: contactData.isPrimary || false,
+          isWhatsApp: contactData.isWhatsApp !== false,
+          status: 'new',
+          notes: contactData.isPrimary ? 'Primary contact from client details' : 'Contact from client details'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to create Contact document:', error.message);
+      // Don't fail the main operation if Contact creation fails
+    }
+
     return customer.toObject();
   }
 
@@ -512,6 +628,9 @@ class CustomerService {
       throw new Error('Contact person not found');
     }
 
+    // Get the old name for Contact sync
+    const oldName = customer.contactPersons[contactIndex].name;
+
     // If this is marked as primary, unmark other contacts
     if (updateData.isPrimary) {
       customer.contactPersons.forEach((contact, index) => {
@@ -532,6 +651,30 @@ class CustomerService {
     }
 
     await customer.save();
+
+    // Also update the corresponding Contact document
+    try {
+      await Contact.findOneAndUpdate(
+        {
+          customer: customerId,
+          name: { $regex: new RegExp(`^${oldName}$`, 'i') }
+        },
+        {
+          name: updateData.name,
+          designation: updateData.designation,
+          mobile1: updateData.mobile,
+          email: updateData.email,
+          isPrimary: updateData.isPrimary || false,
+          isWhatsApp: updateData.isWhatsApp !== false,
+          firmName: customer.firmName || customer.name
+        },
+        { new: true }
+      );
+    } catch (error) {
+      console.error('Failed to update Contact document:', error.message);
+      // Don't fail the main operation if Contact update fails
+    }
+
     return customer.toObject();
   }
 
@@ -556,6 +699,9 @@ class CustomerService {
       throw new Error('Contact person not found');
     }
 
+    // Get the contact being deleted for Contact sync
+    const deletedContact = customer.contactPersons[contactIndex];
+
     // Remove the contact person
     customer.contactPersons.splice(contactIndex, 1);
 
@@ -570,6 +716,20 @@ class CustomerService {
     }
 
     await customer.save();
+
+    // Also delete the corresponding Contact document
+    try {
+      if (deletedContact && deletedContact.name) {
+        await Contact.findOneAndDelete({
+          customer: customerId,
+          name: { $regex: new RegExp(`^${deletedContact.name}$`, 'i') }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to delete Contact document:', error.message);
+      // Don't fail the main operation if Contact deletion fails
+    }
+
     return customer.toObject();
   }
 }

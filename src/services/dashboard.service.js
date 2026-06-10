@@ -7,15 +7,19 @@ import Product from '../models/product.model.js';
 class DashboardService {
   /**
    * Get dashboard summary
+   * @param {String} userId - User ID to filter orders
    * @returns {Object} Dashboard summary data
    */
- async getDashboardSummary() {
+ async getDashboardSummary(userId = null) {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // First day of current month
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
   // Today's sales
   const todaySalesResult = await Sale.aggregate([
@@ -28,6 +32,22 @@ class DashboardService {
       $group: {
         _id: null,
         todaySales: { $sum: "$totalValue" }
+      }
+    }
+  ]);
+
+  // Monthly collection (received amount this month)
+  const monthlyCollectionResult = await Sale.aggregate([
+    {
+      $match: {
+        invoiceDate: { $gte: firstDayOfMonth, $lte: today }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        monthlyCollected: { $sum: "$receivedAmount" },
+        monthlySales: { $sum: "$totalValue" }
       }
     }
   ]);
@@ -66,11 +86,17 @@ class DashboardService {
     }
   ]);
 
-  // Pending orders
-  const pendingOrders = await Order.countDocuments({ status: "pending" });
+  // Build order query with user filter
+  const orderQuery = {};
+  if (userId) {
+    orderQuery.createdBy = userId;
+  }
 
-  // Total orders
-  const totalOrders = await Order.countDocuments();
+  // Pending orders (filtered by user)
+  const pendingOrders = await Order.countDocuments({ ...orderQuery, status: "pending" });
+
+  // Total orders (filtered by user)
+  const totalOrders = await Order.countDocuments(orderQuery);
 
   // Draft inquiries (not converted yet)
   const inquiryCount = await Inquiry.countDocuments({ status: "draft" });
@@ -80,6 +106,8 @@ class DashboardService {
 
   return {
     todaySales: todaySalesResult[0]?.todaySales || 0,
+    monthlyCollected: monthlyCollectionResult[0]?.monthlyCollected || 0,
+    monthlySales: monthlyCollectionResult[0]?.monthlySales || 0,
     totalOutstanding: outstandingResult[0]?.totalOutstanding || 0,
     overdueAmount: overdueResult[0]?.overdueAmount || 0,
     pendingOrders,
@@ -127,6 +155,8 @@ class DashboardService {
    * @returns {Array} List of customers with outstanding balance
    */
   async getOutstandingCustomers() {
+    const today = new Date();
+
     const result = await Sale.aggregate([
       {
         $match: {
@@ -138,7 +168,8 @@ class DashboardService {
           _id: "$customerId",
           outstandingAmount: { $sum: "$pendingAmount" },
           totalPurchase: { $sum: "$totalValue" },
-          totalPaid: { $sum: "$receivedAmount" }
+          totalPaid: { $sum: "$receivedAmount" },
+          oldestInvoice: { $min: "$invoiceDate" }
         }
       },
       {
@@ -150,21 +181,45 @@ class DashboardService {
         }
       },
       {
-        $unwind: "$customer"
+        $unwind: {
+          path: "$customer",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $addFields: {
+          overdueDays: {
+            $cond: {
+              if: { $gt: ["$oldestInvoice", null] },
+              then: {
+                $floor: {
+                  $divide: [
+                    { $subtract: [today, "$oldestInvoice"] },
+                    1000 * 60 * 60 * 24
+                  ]
+                }
+              },
+              else: 0
+            }
+          }
+        }
       },
       {
         $project: {
           _id: 0,
           customerId: "$_id",
-          name: "$customer.name",
-          company: "$customer.firmName",
-          contact: "$customer.contactPerson",
-          city: "$customer.city",
-          mobile: "$customer.mobile",
+          name: { $ifNull: ["$customer.name", "Unknown"] },
+          company: { $ifNull: ["$customer.firmName", "Unknown Company"] },
+          contact: { $ifNull: ["$customer.contactPerson", ""] },
+          city: { $ifNull: ["$customer.city", ""] },
+          mobile: { $ifNull: ["$customer.mobile", ""] },
           outstanding: "$outstandingAmount",
           outstandingAmount: 1,
           totalPurchase: 1,
-          totalPaid: 1
+          totalPaid: 1,
+          oldestInvoice: 1,
+          overdueSince: "$oldestInvoice",
+          overdueDays: 1
         }
       },
       {
@@ -186,7 +241,6 @@ class DashboardService {
     const result = await Sale.aggregate([
       {
         $match: {
-          paidStatus: { $in: ['unpaid', 'partial', ''] },
           invoiceDate: { $lt: thirtyDaysAgo },
           pendingAmount: { $gt: 0 }
         }
@@ -208,7 +262,10 @@ class DashboardService {
         }
       },
       {
-        $unwind: '$customer'
+        $unwind: {
+          path: '$customer',
+          preserveNullAndEmptyArrays: true
+        }
       },
       {
         $addFields: {
@@ -226,14 +283,15 @@ class DashboardService {
         $project: {
           _id: 0,
           customerId: '$_id',
-          name: '$customer.name',
-          company: '$customer.firmName',
-          contact: '$customer.contactPerson',
-          city: '$customer.city',
-          mobile: '$customer.mobile',
+          name: { $ifNull: ['$customer.name', 'Unknown'] },
+          company: { $ifNull: ['$customer.firmName', 'Unknown Company'] },
+          contact: { $ifNull: ['$customer.contactPerson', ''] },
+          city: { $ifNull: ['$customer.city', ''] },
+          mobile: { $ifNull: ['$customer.mobile', ''] },
           overdueAmount: 1,
           outstanding: '$overdueAmount',
-          overdueDays: 1
+          overdueDays: 1,
+          overdueSince: '$oldestInvoice'
         }
       },
       {
