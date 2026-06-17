@@ -47,6 +47,30 @@ export const validateProductQuery = Joi.object({
     .allow('')
     .messages({
       'string.max': 'Category cannot exceed 100 characters'
+    }),
+  subcategory: Joi.string()
+    .trim()
+    .max(100)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Subcategory cannot exceed 100 characters'
+    }),
+  series: Joi.string()
+    .trim()
+    .max(100)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Series cannot exceed 100 characters'
+    }),
+  subSeries: Joi.string()
+    .trim()
+    .max(100)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Sub-series cannot exceed 100 characters'
     })
 });
 

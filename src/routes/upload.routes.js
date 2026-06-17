@@ -14,7 +14,9 @@ const requiredDirs = [
   path.join(uploadBasePath, 'general'),
   path.join(uploadBasePath, 'customers/photos'),
   path.join(uploadBasePath, 'customers/documents'),
-  path.join(uploadBasePath, 'products/images')
+  path.join(uploadBasePath, 'products/images'),
+  path.join(uploadBasePath, 'contacts'),
+  path.join(uploadBasePath, 'contacts/documents')
 ];
 
 requiredDirs.forEach(dir => {
@@ -31,6 +33,10 @@ const getFolderPath = (fieldname) => {
     return 'customers/photos';
   } else if (fieldname === 'productImage') {
     return 'products/images';
+  } else if (fieldname === 'contactPhoto') {
+    return 'contacts';
+  } else if (fieldname === 'contactAadharCard' || fieldname === 'contactPanCard') {
+    return 'contacts/documents';
   } else if (['panCard', 'aadharCard', 'shopAct', 'msme', 'gstCertificate', 'other'].includes(fieldname)) {
     return 'customers/documents';
   }
@@ -172,6 +178,75 @@ router.post('/customer', protect, (req, res) => {
       success: true,
       message: 'Files uploaded successfully',
       data: uploadedFiles
+    });
+  });
+});
+
+// @route   POST /api/upload/image/:folder
+// @desc    Upload a single image to a specific folder
+// @access  Private
+router.post('/image/:folder', protect, (req, res) => {
+  // Dynamic storage for folder-specific uploads
+  const imageStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const folder = req.params.folder || 'general';
+      const uploadPath = path.join(__dirname, '../../uploads', folder);
+
+      // Create folder if it doesn't exist
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+
+      cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      cb(null, `image-${uniqueSuffix}${ext}`);
+    }
+  });
+
+  const imageUpload = multer({
+    storage: imageStorage,
+    fileFilter: fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  });
+
+  imageUpload.single('image')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size exceeds the 5MB limit'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload failed'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file uploaded'
+      });
+    }
+
+    const folder = req.params.folder || 'general';
+    const fileUrl = `/uploads/${folder}/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      message: 'Image uploaded successfully',
+      url: fileUrl,
+      data: {
+        originalname: req.file.originalname,
+        filename: req.file.filename,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        url: fileUrl
+      }
     });
   });
 });

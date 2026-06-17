@@ -147,10 +147,19 @@ router.post('/customers', async (req, res, next) => {
 
 router.put('/customers/:id', async (req, res, next) => {
   try {
+    // Clean up data - convert empty strings to null for ObjectId fields
+    const cleanedData = { ...req.body };
+    const objectIdFields = ['businessCategory', 'brandCategory', 'accountManager', 'productManager'];
+
+    objectIdFields.forEach(field => {
+      if (cleanedData[field] === '' || cleanedData[field] === undefined) {
+        cleanedData[field] = null;
+      }
+    });
 
     const customer = await Customer.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      cleanedData,
       {
         new: true,
         runValidators: true
@@ -830,11 +839,15 @@ router.get('/contacts', async (req, res, next) => {
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
         { firmName: { $regex: search, $options: 'i' } },
         { mobile1: { $regex: search, $options: 'i' } },
         { mobile2: { $regex: search, $options: 'i' } },
         { mobile3: { $regex: search, $options: 'i' } },
-        { city: { $regex: search, $options: 'i' } }
+        { city: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { designation: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -881,23 +894,38 @@ router.get('/contacts/:id', async (req, res, next) => {
 router.post('/contacts', async (req, res, next) => {
   try {
     const {
+      firstName,
+      middleName,
+      lastName,
       name,
       customer,
       firmName,
       designation,
+      landmark,
+      city,
       mobile1,
+      mobile1WhatsApp,
+      mobile2,
+      mobile2WhatsApp,
+      mobile3,
+      mobile3WhatsApp,
       email,
+      photo,
+      aadharCard,
+      panCard,
       isPrimary,
-      isWhatsApp,
       status,
       notes
     } = req.body;
 
+    // Compute full name from parts
+    const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ') || name;
+
     // Validation
-    if (!name) {
+    if (!firstName && !name) {
       return res.status(400).json({
         success: false,
-        message: 'Name is required'
+        message: 'First name is required'
       });
     }
 
@@ -912,16 +940,28 @@ router.post('/contacts', async (req, res, next) => {
     }
 
     const contact = await Contact.create({
-      name,
+      firstName: firstName || undefined,
+      middleName: middleName || undefined,
+      lastName: lastName || undefined,
+      name: fullName || name,
       customer: customer || null,
       firmName: finalFirmName,
-      designation,
-      mobile1,
-      email,
+      designation: designation || undefined,
+      landmark: landmark || undefined,
+      city: city || undefined,
+      mobile1: mobile1 || undefined,
+      mobile1WhatsApp: mobile1WhatsApp || false,
+      mobile2: mobile2 || undefined,
+      mobile2WhatsApp: mobile2WhatsApp || false,
+      mobile3: mobile3 || undefined,
+      mobile3WhatsApp: mobile3WhatsApp || false,
+      email: email || undefined,
+      photo: photo || undefined,
+      aadharCard: aadharCard || undefined,
+      panCard: panCard || undefined,
       isPrimary: isPrimary || false,
-      isWhatsApp: isWhatsApp !== false,
-      status: status || 'new',
-      notes
+      status: status || 'active',
+      notes: notes || undefined
     });
 
     // Populate customer before returning
@@ -931,10 +971,8 @@ router.post('/contacts', async (req, res, next) => {
     if (customerDoc) {
       try {
         // Check if this contact already exists in contactPersons by name OR mobile
-        // If same name exists, it's a duplicate - don't add
-        // If same mobile but different name, it's a different contact - add it
         const existingByNameIndex = customerDoc.contactPersons.findIndex(
-          cp => cp.name && cp.name.toLowerCase() === name.toLowerCase()
+          cp => cp.name && cp.name.toLowerCase() === fullName.toLowerCase()
         );
 
         if (existingByNameIndex === -1) {
@@ -946,12 +984,12 @@ router.post('/contacts', async (req, res, next) => {
           }
           // Add new contact person
           customerDoc.contactPersons.push({
-            name,
+            name: fullName,
             designation,
             mobile: mobile1,
             email,
             isPrimary: isPrimary || customerDoc.contactPersons.length === 0,
-            isWhatsApp: isWhatsApp !== false
+            isWhatsApp: mobile1WhatsApp || false
           });
           await customerDoc.save();
         }
@@ -975,17 +1013,32 @@ router.post('/contacts', async (req, res, next) => {
 router.put('/contacts/:id', async (req, res, next) => {
   try {
     const {
+      firstName,
+      middleName,
+      lastName,
       name,
       customer,
       firmName,
       designation,
+      landmark,
+      city,
       mobile1,
+      mobile1WhatsApp,
+      mobile2,
+      mobile2WhatsApp,
+      mobile3,
+      mobile3WhatsApp,
       email,
+      photo,
+      aadharCard,
+      panCard,
       isPrimary,
-      isWhatsApp,
       status,
       notes
     } = req.body;
+
+    // Compute full name from parts
+    const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ') || name;
 
     // Get the existing contact before update
     const existingContact = await Contact.findById(req.params.id);
@@ -1001,16 +1054,28 @@ router.put('/contacts/:id', async (req, res, next) => {
     }
 
     const updateData = {
-      name,
+      firstName: firstName || undefined,
+      middleName: middleName || undefined,
+      lastName: lastName || undefined,
+      name: fullName || name,
       customer: customer || null,
       firmName: finalFirmName,
-      designation,
-      mobile1,
-      email,
+      designation: designation || undefined,
+      landmark: landmark || undefined,
+      city: city || undefined,
+      mobile1: mobile1 || undefined,
+      mobile1WhatsApp: mobile1WhatsApp || false,
+      mobile2: mobile2 || undefined,
+      mobile2WhatsApp: mobile2WhatsApp || false,
+      mobile3: mobile3 || undefined,
+      mobile3WhatsApp: mobile3WhatsApp || false,
+      email: email || undefined,
+      photo: photo || undefined,
+      aadharCard: aadharCard || undefined,
+      panCard: panCard || undefined,
       isPrimary: isPrimary || false,
-      isWhatsApp: isWhatsApp !== false,
       status,
-      notes
+      notes: notes || undefined
     };
 
     // Remove undefined fields
@@ -1048,7 +1113,7 @@ router.put('/contacts/:id', async (req, res, next) => {
       if (customerDoc) {
         // Find existing by name
         const existingContactIndex = customerDoc.contactPersons.findIndex(
-          cp => cp.name && name && cp.name.toLowerCase() === name.toLowerCase()
+          cp => cp.name && fullName && cp.name.toLowerCase() === fullName.toLowerCase()
         );
 
         // If this is primary, unmark other contacts
@@ -1062,21 +1127,21 @@ router.put('/contacts/:id', async (req, res, next) => {
 
         if (existingContactIndex !== -1) {
           // Update existing contact person
-          customerDoc.contactPersons[existingContactIndex].name = name;
+          customerDoc.contactPersons[existingContactIndex].name = fullName;
           customerDoc.contactPersons[existingContactIndex].designation = designation;
           customerDoc.contactPersons[existingContactIndex].mobile = mobile1;
           customerDoc.contactPersons[existingContactIndex].email = email;
           customerDoc.contactPersons[existingContactIndex].isPrimary = isPrimary || false;
-          customerDoc.contactPersons[existingContactIndex].isWhatsApp = isWhatsApp !== false;
+          customerDoc.contactPersons[existingContactIndex].isWhatsApp = mobile1WhatsApp || false;
         } else {
           // Add new contact person
           customerDoc.contactPersons.push({
-            name,
+            name: fullName,
             designation,
             mobile: mobile1,
             email,
             isPrimary: isPrimary || customerDoc.contactPersons.length === 0,
-            isWhatsApp: isWhatsApp !== false
+            isWhatsApp: mobile1WhatsApp || false
           });
         }
         await customerDoc.save();
@@ -1128,6 +1193,35 @@ router.delete('/contacts/:id', async (req, res, next) => {
     }
 
     res.json({ success: true, message: 'Contact deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get unique designations from contacts
+router.get('/contacts/designations', async (req, res, next) => {
+  try {
+    const designations = await Contact.distinct('designation', { designation: { $ne: null, $ne: '' } });
+    res.json({
+      success: true,
+      data: designations.filter(Boolean).sort()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get contacts by customer ID
+router.get('/customers/:id/contacts', async (req, res, next) => {
+  try {
+    const contacts = await Contact.find({ customer: req.params.id })
+      .populate('customer', 'firmName name mobile')
+      .sort({ isPrimary: -1, createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: contacts
+    });
   } catch (error) {
     next(error);
   }

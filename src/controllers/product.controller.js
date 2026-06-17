@@ -23,7 +23,7 @@ export const syncProducts = async (req, res, next) => {
 // @access  Private
 export const getProducts = async (req, res, next) => {
   try {
-    const { page, limit, search, brand, brands, category, categories, productType, subcategory } = req.query;
+    const { page, limit, search, brand, brands, category, categories, productType, subcategory, series, subSeries } = req.query;
 
     // Get user's assigned brands (for role-based access control)
     const user = req.user;
@@ -46,6 +46,8 @@ export const getProducts = async (req, res, next) => {
       categories: categories || '',
       productType: productType || '',
       subcategory: subcategory || '',
+      series: series || '',
+      subSeries: subSeries || '',
       userAssignedBrands
     });
 

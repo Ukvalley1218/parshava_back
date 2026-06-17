@@ -191,9 +191,21 @@ class CustomerService {
    * @returns {Object} Created customer
    */
   async createCustomer(data, userId) {
+    // Clean up data - convert empty strings to null for ObjectId fields
+    const cleanedData = { ...data };
+
+    // List of ObjectId fields that should be null if empty
+    const objectIdFields = ['businessCategory', 'brandCategory', 'accountManager', 'productManager'];
+
+    objectIdFields.forEach(field => {
+      if (cleanedData[field] === '' || cleanedData[field] === undefined) {
+        cleanedData[field] = null;
+      }
+    });
+
     // Step 1: Save customer in MongoDB with syncStatus = pending
     const customer = await Customer.create({
-      ...data,
+      ...cleanedData,
       createdBy: userId,
       syncStatus: 'pending'
     });

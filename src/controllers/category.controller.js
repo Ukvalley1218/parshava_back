@@ -1,55 +1,47 @@
 import Category from '../models/category.model.js';
 import Subcategory from '../models/subcategory.model.js';
 import Series from '../models/series.model.js';
-import Product from '../models/product.model.js';
 
 // @desc    Get all categories
 // @route   GET /api/categories
 // @access  Private
 export const getCategories = async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, search, active, brand } = req.query;
+    const { page = 1, limit = 50, search, active, brand, brandId } = req.query;
 
-    // If brand is provided, get categories that have products for that brand
-    if (brand) {
-      const categoryNames = await Product.distinct('category', {
-        brand: { $regex: new RegExp(`^${brand}$`, 'i') },
-        active: { $ne: false }
-      });
-
-      // Get category documents for the found category names
-      const query = {
-        name: { $in: categoryNames }
-      };
-
-      if (search) {
-        query.name = { $regex: search, $options: 'i' };
-      }
-
-      if (active !== undefined) {
-        query.active = active === 'true';
-      }
-
-      const total = await Category.countDocuments(query);
-      const categories = await Category.find(query)
-        .sort({ name: 1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
-
-      return res.json({
-        success: true,
-        data: categories,
-        pagination: {
-          totalItems: total,
-          totalPages: Math.ceil(total / limit),
-          currentPage: parseInt(page),
-          limit: parseInt(limit)
-        }
-      });
-    }
-
-    // Original behavior - get all categories
     const query = {};
+
+    // Filter by brand name or brand ObjectId
+    if (brand || brandId) {
+      // Get the Brand ObjectId to filter categories
+      const Brand = (await import('../models/brand.model.js')).default;
+
+      if (brandId) {
+        // Direct ObjectId filter
+        query.brands = brandId;
+      } else if (brand) {
+        // Find brand by name first, then filter categories
+        const brandDoc = await Brand.findOne({
+          name: { $regex: new RegExp(`^${brand}$`, 'i') }
+        });
+
+        if (brandDoc) {
+          query.brands = brandDoc._id;
+        } else {
+          // Brand not found, return empty result
+          return res.json({
+            success: true,
+            data: [],
+            pagination: {
+              totalItems: 0,
+              totalPages: 0,
+              currentPage: parseInt(page),
+              limit: parseInt(limit)
+            }
+          });
+        }
+      }
+    }
 
     if (search) {
       query.name = { $regex: search, $options: 'i' };
@@ -61,6 +53,7 @@ export const getCategories = async (req, res, next) => {
 
     const total = await Category.countDocuments(query);
     const categories = await Category.find(query)
+      .populate('brands', 'name')
       .sort({ name: 1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -85,7 +78,7 @@ export const getCategories = async (req, res, next) => {
 // @access  Private
 export const getCategoryById = async (req, res, next) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findById(req.params.id).populate('brands', 'name');
 
     if (!category) {
       return res.status(404).json({
@@ -108,7 +101,7 @@ export const getCategoryById = async (req, res, next) => {
 // @access  Private (Admin)
 export const createCategory = async (req, res, next) => {
   try {
-    const { name } = req.body;
+    const { name, brands } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -129,8 +122,14 @@ export const createCategory = async (req, res, next) => {
       });
     }
 
-    const category = new Category({ name: name.trim() });
+    const category = new Category({
+      name: name.trim(),
+      brands: brands || []
+    });
     await category.save();
+
+    // Populate brands before returning
+    await category.populate('brands', 'name');
 
     res.status(201).json({
       success: true,
@@ -147,7 +146,7 @@ export const createCategory = async (req, res, next) => {
 // @access  Private (Admin)
 export const updateCategory = async (req, res, next) => {
   try {
-    const { name, active } = req.body;
+    const { name, active, brands } = req.body;
     const category = await Category.findById(req.params.id);
 
     if (!category) {
@@ -177,7 +176,14 @@ export const updateCategory = async (req, res, next) => {
       category.active = active;
     }
 
+    if (brands !== undefined) {
+      category.brands = brands;
+    }
+
     await category.save();
+
+    // Populate brands before returning
+    await category.populate('brands', 'name');
 
     res.json({
       success: true,

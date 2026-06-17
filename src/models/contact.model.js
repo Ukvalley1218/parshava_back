@@ -1,12 +1,27 @@
 import mongoose from 'mongoose';
 
 const contactSchema = new mongoose.Schema({
-  // Name
+  // Name (split into parts)
+  firstName: {
+    type: String,
+    trim: true,
+    maxlength: 50
+  },
+  middleName: {
+    type: String,
+    trim: true,
+    maxlength: 50
+  },
+  lastName: {
+    type: String,
+    trim: true,
+    maxlength: 50
+  },
+  // Full name (computed or for backward compatibility)
   name: {
     type: String,
-    required: true,
     trim: true,
-    maxlength: 100
+    maxlength: 150
   },
 
   // Linked Customer/Firm (optional - links to Customer collection)
@@ -44,51 +59,39 @@ const contactSchema = new mongoose.Schema({
     maxlength: 100
   },
 
-  // Mobile Numbers
+  // Mobile Numbers with WhatsApp flags
   mobile1: {
     type: String,
     trim: true,
     maxlength: 15
   },
-
+  mobile1WhatsApp: {
+    type: Boolean,
+    default: false
+  },
   mobile2: {
     type: String,
     trim: true,
     maxlength: 15
   },
-
+  mobile2WhatsApp: {
+    type: Boolean,
+    default: false
+  },
   mobile3: {
     type: String,
     trim: true,
     maxlength: 15
+  },
+  mobile3WhatsApp: {
+    type: Boolean,
+    default: false
   },
 
   // Photo URL
   photo: {
     type: String,
     trim: true
-  },
-
-  // Aadhar Number
-  aadharNumber: {
-    type: String,
-    trim: true,
-    maxlength: 12
-  },
-
-  // PAN Number
-  panNumber: {
-    type: String,
-    trim: true,
-    uppercase: true,
-    maxlength: 10
-  },
-
-  // Status
-  status: {
-    type: String,
-    enum: ['new', 'in_progress', 'resolved', 'closed'],
-    default: 'new'
   },
 
   // Email
@@ -98,16 +101,29 @@ const contactSchema = new mongoose.Schema({
     lowercase: true
   },
 
+  // Aadhar Card
+  aadharCard: {
+    type: String,
+    trim: true
+  },
+
+  // PAN Card
+  panCard: {
+    type: String,
+    trim: true
+  },
+
+  // Status
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active'
+  },
+
   // Is Primary Contact
   isPrimary: {
     type: Boolean,
     default: false
-  },
-
-  // Has WhatsApp
-  isWhatsApp: {
-    type: Boolean,
-    default: true
   },
 
   // Internal Notes
@@ -118,14 +134,26 @@ const contactSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+// Pre-save middleware to compute full name
+contactSchema.pre('save', function(next) {
+  const parts = [this.firstName, this.middleName, this.lastName].filter(Boolean)
+  if (parts.length > 0) {
+    this.name = parts.join(' ')
+  }
+  next()
+})
+
 // Text Search Index
 contactSchema.index({
   name: 'text',
+  firstName: 'text',
+  lastName: 'text',
   firmName: 'text',
   mobile1: 'text',
   mobile2: 'text',
   mobile3: 'text',
-  city: 'text'
+  city: 'text',
+  email: 'text'
 });
 
 // Other Indexes

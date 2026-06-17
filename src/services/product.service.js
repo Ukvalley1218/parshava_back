@@ -96,7 +96,7 @@ class ProductService {
    * @param {Array} options.userAssignedBrands - Optional array of brand names to filter by (for role-based access)
    * @returns {Object} Products with pagination info
    */
-  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '', userAssignedBrands = null }) {
+  async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '', series = '', subSeries = '', userAssignedBrands = null }) {
     const query = {};
 
     // Use regex search for partial matching (e.g., "bar" matches "Barcode Printer")
@@ -110,6 +110,7 @@ class ProductService {
         { category: searchRegex },
         { subcategory: searchRegex },
         { series: searchRegex },
+        { subSeries: searchRegex },
         { description: searchRegex }
       ];
     }
@@ -169,6 +170,16 @@ class ProductService {
     // Filter by subcategory (new field from Brand collection)
     if (subcategory) {
       query.subcategory = subcategory;
+    }
+
+    // Filter by series
+    if (series) {
+      query.series = series;
+    }
+
+    // Filter by sub-series
+    if (subSeries) {
+      query.subSeries = subSeries;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

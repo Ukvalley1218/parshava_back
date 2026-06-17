@@ -1,5 +1,23 @@
 import mongoose from 'mongoose';
 
+const subSeriesSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  code: {
+    type: String,
+    required: true,
+    trim: true,
+    uppercase: true
+  },
+  active: {
+    type: Boolean,
+    default: true
+  }
+}, { _id: true, timestamps: true });
+
 const seriesSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -16,6 +34,7 @@ const seriesSchema = new mongoose.Schema({
     ref: 'Category',
     required: true
   },
+  subSeries: [subSeriesSchema],
   active: {
     type: Boolean,
     default: true

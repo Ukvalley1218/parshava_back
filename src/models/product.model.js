@@ -74,6 +74,26 @@ const productSchema = new mongoose.Schema({
     ref: 'Series'
   },
 
+  // Sub-Series - Linked to Series
+  subSeries: {
+    type: String,
+    trim: true,
+    maxlength: 50
+  },
+
+  subSeriesId: {
+    type: mongoose.Schema.Types.ObjectId
+    // This is a subdocument ID within the series.subSeries array
+    // Not a direct reference to a separate model
+  },
+
+  subSeriesCode: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    maxlength: 10
+  },
+
   // Basic Info
   unit: {
     type: String,

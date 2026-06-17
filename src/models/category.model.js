@@ -12,6 +12,11 @@ const categorySchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  // Linked brands - array of brand ObjectIds or brand names
+  brands: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Brand'
+  }],
   active: {
     type: Boolean,
     default: true
@@ -21,6 +26,7 @@ const categorySchema = new mongoose.Schema({
 // Create text index for search
 categorySchema.index({ name: 'text' });
 categorySchema.index({ slug: 1 });
+categorySchema.index({ brands: 1 });
 
 // Generate slug before saving
 categorySchema.pre('save', function(next) {
