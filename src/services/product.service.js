@@ -99,6 +99,9 @@ class ProductService {
   async getProducts({ page = 1, limit = 10, search = '', brand = '', brands = '', category = '', categories = '', productType = '', subcategory = '', series = '', subSeries = '', userAssignedBrands = null }) {
     const query = {};
 
+    // Only show active (continued) products for frontend
+    query.active = { $ne: false };
+
     // Use regex search for partial matching (e.g., "bar" matches "Barcode Printer")
     if (search && search.trim()) {
       const searchTerm = search.trim();
@@ -215,6 +218,11 @@ class ProductService {
     const product = await Product.findById(productId).lean();
 
     if (!product) {
+      throw new Error('Product not found');
+    }
+
+    // Check if product is discontinued (active: false)
+    if (product.active === false) {
       throw new Error('Product not found');
     }
 

@@ -54,7 +54,7 @@ export const getCategories = async (req, res, next) => {
     const total = await Category.countDocuments(query);
     const categories = await Category.find(query)
       .populate('brands', 'name')
-      .sort({ name: 1 })
+     .sort({ createdAt: -1 }) // newest first
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 
@@ -232,7 +232,7 @@ export const getCategorySubcategories = async (req, res, next) => {
     const subcategories = await Subcategory.find({
       category: req.params.id,
       active: true
-    }).sort({ name: 1 });
+    }).sort({ createdAt: -1 }); // newest first;
 
     res.json({
       success: true,
@@ -251,7 +251,7 @@ export const getCategorySeries = async (req, res, next) => {
     const series = await Series.find({
       category: req.params.id,
       active: true
-    }).sort({ name: 1 });
+    }).sort({ createdAt: -1 }); // newest first;
 
     res.json({
       success: true,

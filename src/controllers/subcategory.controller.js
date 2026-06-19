@@ -25,7 +25,7 @@ export const getSubcategories = async (req, res, next) => {
     const total = await Subcategory.countDocuments(query);
     const subcategories = await Subcategory.find(query)
       .populate('category', 'name')
-      .sort({ name: 1 })
+      .sort({ createdAt: -1 }) // newest first
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 

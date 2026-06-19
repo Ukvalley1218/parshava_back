@@ -19,7 +19,7 @@ export const getBrandCategories = async (req, res, next) => {
 
     const total = await BrandCategory.countDocuments(query);
     const categories = await BrandCategory.find(query)
-      .sort({ name: 1 })
+     .sort({ createdAt: -1 }) // newest first
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 

@@ -98,11 +98,18 @@ class DashboardService {
   // Total orders (filtered by user)
   const totalOrders = await Order.countDocuments(orderQuery);
 
-  // Draft inquiries (not converted yet)
-  const inquiryCount = await Inquiry.countDocuments({ status: "draft" });
+  // Draft inquiries (filtered by user, only with customer assigned)
+  const inquiryQuery = {
+    status: "draft",
+    customerId: { $exists: true, $ne: null }
+  };
+  if (userId) {
+    inquiryQuery.createdBy = userId;
+  }
+  const inquiryCount = await Inquiry.countDocuments(inquiryQuery);
 
-  // Total products
-  const totalProducts = await Product.countDocuments();
+  // Total products (only active/continued products)
+  const totalProducts = await Product.countDocuments({ active: { $ne: false } });
 
   return {
     todaySales: todaySalesResult[0]?.todaySales || 0,

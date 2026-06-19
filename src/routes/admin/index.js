@@ -382,7 +382,7 @@ router.get('/products/:id', async (req, res, next) => {
 router.post('/products', async (req, res, next) => {
   try {
     // Convert empty ObjectId strings to undefined to prevent CastError
-    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId', 'seriesId'];
+    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId', 'seriesId', 'subSeriesId'];
     const processedBody = { ...req.body };
 
     objectIdFields.forEach(field => {
@@ -458,7 +458,7 @@ router.put('/products/:id', async (req, res, next) => {
   try {
     // Convert empty ObjectId strings to undefined to prevent CastError
     const updateData = { ...req.body };
-    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId', 'seriesId'];
+    const objectIdFields = ['brandId', 'categoryId', 'subcategoryId', 'seriesId', 'subSeriesId'];
 
     objectIdFields.forEach(field => {
       if (updateData[field] === '' || updateData[field] === null) {
@@ -529,7 +529,7 @@ router.get('/brands', async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [brands, total] = await Promise.all([
-      Brand.find(query).sort({ name: 1 }).skip(skip).limit(parseInt(limit)),
+      Brand.find(query).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
       Brand.countDocuments(query)
     ]);
 
