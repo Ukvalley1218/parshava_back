@@ -21,38 +21,46 @@ class DashboardService {
   // First day of current month
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  // Today's sales
-  const todaySalesResult = await Sale.aggregate([
+  // Build order query with user filter
+  const orderQuery = {};
+  if (userId) {
+    orderQuery.createdBy = userId;
+  }
+
+  // Today's orders (sales made today)
+  const todayOrdersResult = await Order.aggregate([
     {
       $match: {
-        invoiceDate: { $gte: today, $lt: tomorrow }
+        ...orderQuery,
+        createdAt: { $gte: today, $lt: tomorrow }
       }
     },
     {
       $group: {
         _id: null,
-        todaySales: { $sum: "$totalValue" }
+        todaySales: { $sum: "$grandTotal" }
       }
     }
   ]);
 
-  // Monthly collection (received amount this month)
-  const monthlyCollectionResult = await Sale.aggregate([
+  // Monthly orders (for monthly collection)
+  const monthlyOrdersResult = await Order.aggregate([
     {
       $match: {
-        invoiceDate: { $gte: firstDayOfMonth, $lte: today }
+        ...orderQuery,
+        createdAt: { $gte: firstDayOfMonth, $lte: today }
       }
     },
     {
       $group: {
         _id: null,
-        monthlyCollected: { $sum: "$receivedAmount" },
-        monthlySales: { $sum: "$totalValue" }
+        monthlyCollected: { $sum: "$grandTotal" },
+        monthlySales: { $sum: "$grandTotal" }
       }
     }
   ]);
 
-  // Total outstanding (pending invoices)
+  // Total outstanding from Sales model (pending invoices from accounting system)
   const outstandingResult = await Sale.aggregate([
     {
       $match: {
@@ -67,7 +75,7 @@ class DashboardService {
     }
   ]);
 
-  // Overdue invoices (>30 days)
+  // Overdue invoices (>30 days) from Sales model
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -86,12 +94,6 @@ class DashboardService {
     }
   ]);
 
-  // Build order query with user filter
-  const orderQuery = {};
-  if (userId) {
-    orderQuery.createdBy = userId;
-  }
-
   // Pending orders (filtered by user)
   const pendingOrders = await Order.countDocuments({ ...orderQuery, status: "pending" });
 
@@ -99,8 +101,9 @@ class DashboardService {
   const totalOrders = await Order.countDocuments(orderQuery);
 
   // Draft inquiries (filtered by user, only with customer assigned)
+  // 'draft' tab shows both 'draft' and 'pending' status inquiries
   const inquiryQuery = {
-    status: "draft",
+    status: { $in: ["draft", "pending"] },
     customerId: { $exists: true, $ne: null }
   };
   if (userId) {
@@ -112,9 +115,9 @@ class DashboardService {
   const totalProducts = await Product.countDocuments({ active: { $ne: false } });
 
   return {
-    todaySales: todaySalesResult[0]?.todaySales || 0,
-    monthlyCollected: monthlyCollectionResult[0]?.monthlyCollected || 0,
-    monthlySales: monthlyCollectionResult[0]?.monthlySales || 0,
+    todaySales: todayOrdersResult[0]?.todaySales || 0,
+    monthlyCollected: monthlyOrdersResult[0]?.monthlyCollected || 0,
+    monthlySales: monthlyOrdersResult[0]?.monthlySales || 0,
     totalOutstanding: outstandingResult[0]?.totalOutstanding || 0,
     overdueAmount: overdueResult[0]?.overdueAmount || 0,
     pendingOrders,

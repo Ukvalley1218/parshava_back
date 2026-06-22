@@ -632,7 +632,7 @@ class InquiryService {
 
     cart.notes = notes;
 
-    cart.status = 'pending';
+    cart.status = 'draft';
 
     // Generate inquiry ID
     const inquiryCount = await Inquiry.countDocuments();

@@ -220,8 +220,35 @@ class OrderService {
       throw new Error('Cannot create order from empty inquiry');
     }
 
+    // Check if any products in inquiry are missing/deleted
+    const missingProducts = inquiry.items.filter(item => !item.productId);
+    if (missingProducts.length > 0) {
+      const productNames = missingProducts.map(item => item.productName || 'Unknown product').join(', ');
+      throw new Error(`Cannot create order: Some products have been deleted from the system (${productNames}). Please remove these items from the inquiry and try again.`);
+    }
+
+    // Validate all items have required fields
+    const invalidItems = inquiry.items.filter(item => {
+      const hasMissingFields = !item.productName ||
+        item.price === undefined || item.price === null ||
+        item.qty === undefined || item.qty === null ||
+        item.gstRate === undefined || item.gstRate === null;
+      return hasMissingFields;
+    });
+
+    if (invalidItems.length > 0) {
+      console.error('Invalid items in inquiry:', invalidItems);
+      throw new Error('Some items in the inquiry have missing required fields (name, price, quantity, or GST rate). Please recreate the inquiry.');
+    }
+
+    // Check if customer exists
+    if (!inquiry.customerId) {
+      throw new Error('Inquiry does not have a customer assigned');
+    }
+
     // Get customer with AccountGST ID
-    const customer = await Customer.findById(inquiry.customerId._id || inquiry.customerId);
+    const customerId = inquiry.customerId._id || inquiry.customerId;
+    const customer = await Customer.findById(customerId);
 
     if (!customer) {
       throw new Error('Customer not found');

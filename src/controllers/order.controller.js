@@ -24,6 +24,8 @@ export const createOrder = async (req, res, next) => {
       data: order
     });
   } catch (error) {
+    console.error('Create order from inquiry error:', error);
+
     if (error.message === 'Inquiry not found') {
       return res.status(404).json({
         success: false,
@@ -46,6 +48,34 @@ export const createOrder = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Customer not found'
+      });
+    }
+    if (error.message === 'Inquiry does not have a customer assigned') {
+      return res.status(400).json({
+        success: false,
+        message: 'Inquiry does not have a customer assigned'
+      });
+    }
+    // Handle deleted products error
+    if (error.message.includes('Some products have been deleted')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    // Handle missing required fields error
+    if (error.message.includes('missing required fields')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${messages.join(', ')}`
       });
     }
     next(error);
