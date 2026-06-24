@@ -319,7 +319,7 @@ class CustomerService {
     // Fetch customers
     const [customers, total] = await Promise.all([
       Customer.find(query)
-        .select('name firmName mobile email city state address outstanding status contactPerson accountgstId syncStatus createdAt')
+        .select('name firmName mobile email city state address outstanding status contactPerson accountgstId syncStatus priceListCategory createdAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
@@ -366,6 +366,10 @@ class CustomerService {
           });
         } else {
           customer.lastOrder = null;
+        }
+        // Set default priceListCategory if not present
+        if (!customer.priceListCategory) {
+          customer.priceListCategory = 'T1';
         }
       });
     }

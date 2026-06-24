@@ -462,14 +462,16 @@ class OrderService {
    * @returns {Object} Orders with pagination info
    */
   async getOrders({ page = 1, limit = 10, status = '', userId = null }) {
-    const query = {};
+    const query = {
+      status: { $ne: 'cancelled' } // Exclude cancelled (soft-deleted) orders by default
+    };
 
     // Filter by user - only show user's own orders
     if (userId) {
       query.createdBy = userId;
     }
 
-    // Filter by status
+    // Filter by status (override default status filter)
     if (status) {
       query.status = status;
     }
@@ -517,6 +519,11 @@ class OrderService {
       .populate('createdBy', 'name email');
 
     if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Don't return cancelled orders
+    if (order.status === 'cancelled') {
       throw new Error('Order not found');
     }
 

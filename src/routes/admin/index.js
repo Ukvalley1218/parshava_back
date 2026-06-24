@@ -217,7 +217,14 @@ router.get('/inquiries', async (req, res, next) => {
     const { page = 1, limit = 10, status, search } = req.query;
     const query = {};
 
-    if (status) query.status = status;
+    // Filter out cancelled (soft-deleted) inquiries by default
+    // Only show cancelled if explicitly requested
+    if (status) {
+      query.status = status;
+    } else {
+      query.status = { $ne: 'cancelled' };
+    }
+
     if (search) {
       query.$or = [
         { 'customerDetails.name': { $regex: search, $options: 'i' } },
@@ -239,6 +246,10 @@ router.get('/inquiries/:id', async (req, res, next) => {
   try {
     const inquiry = await Inquiry.findById(req.params.id).populate('customerId').populate('createdBy', 'name email');
     if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    // Don't return cancelled inquiries unless explicitly requested
+    if (inquiry.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
     res.json({ success: true, data: inquiry });
   } catch (error) { next(error); }
 });
@@ -254,7 +265,12 @@ router.patch('/inquiries/:id/status', async (req, res, next) => {
 
 router.delete('/inquiries/:id', async (req, res, next) => {
   try {
-    const inquiry = await Inquiry.findByIdAndDelete(req.params.id);
+    // Use soft delete - set status to 'cancelled' instead of hard delete
+    const inquiry = await Inquiry.findByIdAndUpdate(
+      req.params.id,
+      { status: 'cancelled' },
+      { new: true }
+    );
     if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
     res.json({ success: true, message: 'Inquiry deleted successfully' });
   } catch (error) { next(error); }
@@ -284,7 +300,14 @@ router.get('/orders', async (req, res, next) => {
     const { page = 1, limit = 10, status, search } = req.query;
     const query = {};
 
-    if (status) query.status = status;
+    // Filter out cancelled (soft-deleted) orders by default
+    // Only show cancelled if explicitly requested
+    if (status) {
+      query.status = status;
+    } else {
+      query.status = { $ne: 'cancelled' };
+    }
+
     if (search) {
       query.$or = [
         { 'customerDetails.name': { $regex: search, $options: 'i' } },
@@ -306,6 +329,10 @@ router.get('/orders/:id', async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id).populate('customerId').populate('createdBy', 'name email');
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    // Don't return cancelled orders unless explicitly requested
+    if (order.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
     res.json({ success: true, data: order });
   } catch (error) { next(error); }
 });
@@ -321,7 +348,12 @@ router.patch('/orders/:id/status', async (req, res, next) => {
 
 router.delete('/orders/:id', async (req, res, next) => {
   try {
-    const order = await Order.findByIdAndDelete(req.params.id);
+    // Use soft delete - set status to 'cancelled' instead of hard delete
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { status: 'cancelled' },
+      { new: true }
+    );
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     res.json({ success: true, message: 'Order deleted successfully' });
   } catch (error) { next(error); }

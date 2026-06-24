@@ -224,7 +224,8 @@ class InquiryService {
    */
   async getInquiries({ page = 1, limit = 10, status = '', userId = null }) {
     const query = {
-      customerId: { $exists: true, $ne: null } // Only show inquiries with a customer assigned
+      customerId: { $exists: true, $ne: null }, // Only show inquiries with a customer assigned
+      status: { $ne: 'cancelled' } // Exclude cancelled (soft-deleted) inquiries by default
     };
 
     // Filter by user - only show user's own inquiries
@@ -232,7 +233,7 @@ class InquiryService {
       query.createdBy = userId;
     }
 
-    // Filter by status
+    // Filter by status (override default status filter)
     if (status) {
       query.status = status;
     }
@@ -279,6 +280,11 @@ class InquiryService {
       .populate('createdBy', 'name email');
 
     if (!inquiry) {
+      throw new Error('Inquiry not found');
+    }
+
+    // Don't return cancelled inquiries
+    if (inquiry.status === 'cancelled') {
       throw new Error('Inquiry not found');
     }
 
