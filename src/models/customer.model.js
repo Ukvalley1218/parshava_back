@@ -213,21 +213,21 @@ const customerSchema = new mongoose.Schema({
 
   documents: [documentSchema],
 
-  // Categories
-  businessCategory: {
+  // Categories (multiple selection)
+  businessCategory: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'BusinessCategory'
-  },
+  }],
 
-  brandCategory: {
+  brandCategory: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'BrandCategory'
-  },
+  }],
 
   // Price List
   priceListCategory: {
     type: String,
-    enum: ['T1', 'T2', 'T3', 'T4'],
+    enum: ['C1', 'SI1', 'SI2', 'T1', 'T2'],
     default: 'T1'
   },
 
@@ -245,7 +245,7 @@ const customerSchema = new mongoose.Schema({
   // CRM Details
   customerType: {
     type: String,
-    enum: ['dealer', 'retailer', 'distributor', 'customer'],
+    enum: ['customer', 'system integrator', 'reseller'],
     default: 'customer'
   },
 

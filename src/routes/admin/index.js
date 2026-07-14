@@ -95,6 +95,8 @@ router.get('/customers', async (req, res, next) => {
 
     const [customers, total] = await Promise.all([
       Customer.find(query)
+        .populate('businessCategory')
+        .populate('brandCategory')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -120,7 +122,9 @@ router.get('/customers', async (req, res, next) => {
 
 router.get('/customers/:id', async (req, res, next) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findById(req.params.id)
+      .populate('businessCategory')
+      .populate('brandCategory');
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
     res.json({ success: true, data: customer });
   } catch (error) { next(error); }
@@ -149,12 +153,23 @@ router.put('/customers/:id', async (req, res, next) => {
   try {
     // Clean up data - convert empty strings to null for ObjectId fields
     const cleanedData = { ...req.body };
-    const objectIdFields = ['businessCategory', 'brandCategory', 'accountManager', 'productManager'];
 
-    objectIdFields.forEach(field => {
+    // Single ObjectId fields
+    const singleObjectIdFields = ['accountManager', 'productManager'];
+    singleObjectIdFields.forEach(field => {
       if (cleanedData[field] === '' || cleanedData[field] === undefined) {
         cleanedData[field] = null;
       }
+    });
+
+    // Array ObjectId fields
+    const arrayObjectIdFields = ['businessCategory', 'brandCategory'];
+    arrayObjectIdFields.forEach(field => {
+      if (!cleanedData[field] || !Array.isArray(cleanedData[field])) {
+        cleanedData[field] = [];
+      }
+      // Filter out empty strings
+      cleanedData[field] = cleanedData[field].filter(id => id && id !== '');
     });
 
     const customer = await Customer.findByIdAndUpdate(
@@ -516,6 +531,151 @@ router.delete('/products/:id', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// Bulk update products (for applying discounts/tier prices to filtered products)
+router.post('/products/bulk-update', async (req, res, next) => {
+  try {
+    const { filters, updates } = req.body;
+
+    // Build query from filters
+    const query = {};
+    if (filters.brand) query.brand = filters.brand;
+    if (filters.category) query.category = filters.category;
+    if (filters.subcategory) query.subcategory = filters.subcategory;
+    if (filters.series) query.series = filters.series;
+    if (filters.search) {
+      query.$or = [
+        { name: { $regex: filters.search, $options: 'i' } },
+        { partNumber: { $regex: filters.search, $options: 'i' } },
+        { brand: { $regex: filters.search, $options: 'i' } }
+      ];
+    }
+
+    // Get all matching products
+    const products = await Product.find(query);
+
+    let modifiedCount = 0;
+
+    // Helper function to calculate NLC and tier prices
+    const calculatePrices = (product, newUpdates) => {
+      const merged = { ...product.toObject(), ...newUpdates };
+      const gstRate = parseFloat(merged.gstRate) || 0;
+
+      // Calculate base price without GST
+      let basePriceWithoutGst = 0;
+      if (merged.basePriceType === 'mop') {
+        basePriceWithoutGst = parseFloat(merged.mop) || 0;
+      } else if (merged.basePriceType === 'purchase') {
+        basePriceWithoutGst = parseFloat(merged.purchasePrice) || 0;
+      } else if (merged.basePriceType === 'market') {
+        basePriceWithoutGst = parseFloat(merged.marketPrice) || 0;
+      } else {
+        // Default to MOP
+        basePriceWithoutGst = parseFloat(merged.mop) || 0;
+      }
+
+      // Add GST to get base price
+      let nlc = basePriceWithoutGst * (1 + gstRate / 100);
+
+      // Apply discounts
+      for (let i = 1; i <= 5; i++) {
+        const discountVal = parseFloat(merged[`dis${i}`]) || 0;
+        const discountType = merged[`dis${i}Type`];
+        if (discountType === 'percent') {
+          nlc = nlc - (nlc * discountVal / 100);
+        } else {
+          nlc = nlc - discountVal;
+        }
+      }
+      nlc = Math.round(nlc * 100) / 100;
+
+      // Calculate price with profit
+      let priceWithProfit = nlc;
+      const profitVal = parseFloat(merged.profit) || 0;
+      if (merged.profitType === 'percent') {
+        priceWithProfit = nlc + (nlc * profitVal / 100);
+      } else {
+        priceWithProfit = nlc + profitVal;
+      }
+
+      // Helper to calculate OP price
+      const calculateOpPrice = (opField, opTypeField, basePrice = priceWithProfit) => {
+        const opVal = parseFloat(merged[opField]) || 0;
+        const opType = merged[opTypeField];
+        if (opType === 'flat') {
+          // For flat margin: final price = basePrice + flatAmount
+          return Math.round((basePrice + opVal) * 100) / 100;
+        } else {
+          // For percent margin: final price = basePrice * (1 + percentage/100)
+          return Math.round((basePrice * (1 + opVal / 100)) * 100) / 100;
+        }
+      };
+
+      // Calculate SI1 price from SI1 margin
+      const si1Price = calculateOpPrice('opSi1', 'opSi1Type', priceWithProfit);
+
+      // Calculate SI2 = SI1 + 1% (auto-calculated)
+      const si2Price = Math.round(si1Price * 1.01 * 100) / 100;
+
+      // Calculate C1 = SI1 + 20% (auto-calculated)
+      const c1Price = Math.round(si1Price * 1.20 * 100) / 100;
+
+      // Calculate T1 price from T1 margin
+      const t1Price = calculateOpPrice('opT1', 'opT1Type', priceWithProfit);
+
+      // Calculate T2 = T1 + 0.5% (auto-calculated)
+      const t2Price = Math.round(t1Price * 1.005 * 100) / 100;
+
+      return {
+        nlc,
+        c1: c1Price,
+        si1: si1Price,
+        si2: si2Price,
+        t1: t1Price,
+        t2: t2Price
+      };
+    };
+
+    // Check if we're updating pricing-related fields
+    const pricingFields = ['dis1', 'dis1Type', 'dis2', 'dis2Type', 'dis3', 'dis3Type', 'dis4', 'dis4Type', 'dis5', 'dis5Type', 'opSi1', 'opSi1Type', 'opT1', 'opT1Type', 'mrp', 'mop', 'purchasePrice', 'marketPrice', 'basePriceType', 'gstRate', 'profit', 'profitType'];
+    const isPricingUpdate = Object.keys(updates).some(key => pricingFields.includes(key));
+
+    // Update each product
+    for (const product of products) {
+      if (isPricingUpdate) {
+        // Calculate new prices
+        const prices = calculatePrices(product, updates);
+
+        // Merge updates with calculated prices
+        const finalUpdates = {
+          ...updates,
+          nlc: prices.nlc,
+          // Store calculated tier prices
+          c1: prices.c1,
+          si1: prices.si1,
+          si2: prices.si2,
+          t1: prices.t1,
+          t2: prices.t2
+        };
+
+        await Product.findByIdAndUpdate(product._id, { $set: finalUpdates });
+      } else {
+        // Just apply the raw updates
+        await Product.findByIdAndUpdate(product._id, { $set: updates });
+      }
+      modifiedCount++;
+    }
+
+    res.json({
+      success: true,
+      message: `Updated ${modifiedCount} products`,
+      data: {
+        matched: products.length,
+        modified: modifiedCount
+      }
+    });
+  } catch (error) { next(error); }
+});
+
 // ============================================
 // DASHBOARD ROUTES
 // ============================================
@@ -865,11 +1025,15 @@ router.get('/contacts', async (req, res, next) => {
     }
 
     if (customer) {
-      query.customer = customer;
+      // Search in both single customer field and customers array
+      query.$or = [
+        { customer: customer },
+        { customers: customer }
+      ];
     }
 
     if (search) {
-      query.$or = [
+      const searchConditions = [
         { name: { $regex: search, $options: 'i' } },
         { firstName: { $regex: search, $options: 'i' } },
         { lastName: { $regex: search, $options: 'i' } },
@@ -881,12 +1045,24 @@ router.get('/contacts', async (req, res, next) => {
         { email: { $regex: search, $options: 'i' } },
         { designation: { $regex: search, $options: 'i' } }
       ];
+
+      // If we already have a $or from customer filter, combine with $and
+      if (query.$or) {
+        query.$and = [
+          { $or: query.$or },
+          { $or: searchConditions }
+        ];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [contacts, total] = await Promise.all([
       Contact.find(query)
+        .populate('customers', 'firmName name mobile')
         .populate('customer', 'firmName name mobile')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -909,10 +1085,25 @@ router.get('/contacts', async (req, res, next) => {
   }
 });
 
+// Get unique designations from contacts (MUST be before /:id routes)
+router.get('/contacts/designations', async (req, res, next) => {
+  try {
+    const designations = await Contact.distinct('designation', { designation: { $ne: null, $ne: '' } });
+    res.json({
+      success: true,
+      data: designations.filter(Boolean).sort()
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get single contact
 router.get('/contacts/:id', async (req, res, next) => {
   try {
-    const contact = await Contact.findById(req.params.id).populate('customer', 'firmName name mobile');
+    const contact = await Contact.findById(req.params.id)
+      .populate('customers', 'firmName name mobile')
+      .populate('customer', 'firmName name mobile');
     if (!contact) {
       return res.status(404).json({ success: false, message: 'Contact not found' });
     }
@@ -931,6 +1122,7 @@ router.post('/contacts', async (req, res, next) => {
       lastName,
       name,
       customer,
+      customers, // New field for multiple customers
       firmName,
       designation,
       landmark,
@@ -961,13 +1153,26 @@ router.post('/contacts', async (req, res, next) => {
       });
     }
 
-    // If customer is provided, fetch firmName from customer
+    // Handle customers array (new) or single customer (backward compatibility)
+    let customerIds = [];
+    if (customers && Array.isArray(customers) && customers.length > 0) {
+      customerIds = customers.filter(id => id && id !== '');
+    } else if (customer) {
+      customerIds = [customer];
+    }
+
+    // Fetch firm names from customers
     let finalFirmName = firmName;
-    let customerDoc = null;
-    if (customer) {
-      customerDoc = await Customer.findById(customer);
-      if (customerDoc) {
-        finalFirmName = customerDoc.firmName || customerDoc.name;
+    const customerDocs = [];
+    if (customerIds.length > 0) {
+      for (const custId of customerIds) {
+        const doc = await Customer.findById(custId);
+        if (doc) {
+          customerDocs.push(doc);
+          if (!finalFirmName && doc.firmName) {
+            finalFirmName = doc.firmName;
+          }
+        }
       }
     }
 
@@ -976,7 +1181,8 @@ router.post('/contacts', async (req, res, next) => {
       middleName: middleName || undefined,
       lastName: lastName || undefined,
       name: fullName || name,
-      customer: customer || null,
+      customers: customerIds,
+      customer: customerIds[0] || null, // Backward compatibility
       firmName: finalFirmName,
       designation: designation || undefined,
       landmark: landmark || undefined,
@@ -996,11 +1202,12 @@ router.post('/contacts', async (req, res, next) => {
       notes: notes || undefined
     });
 
-    // Populate customer before returning
+    // Populate customers before returning
+    await contact.populate('customers', 'firmName name mobile');
     await contact.populate('customer', 'firmName name mobile');
 
-    // If linked to a customer, also add to customer's contactPersons array
-    if (customerDoc) {
+    // Sync to each customer's contactPersons array
+    for (const customerDoc of customerDocs) {
       try {
         // Check if this contact already exists in contactPersons by name OR mobile
         const existingByNameIndex = customerDoc.contactPersons.findIndex(
@@ -1050,6 +1257,7 @@ router.put('/contacts/:id', async (req, res, next) => {
       lastName,
       name,
       customer,
+      customers, // New field for multiple customers
       firmName,
       designation,
       landmark,
@@ -1075,13 +1283,24 @@ router.put('/contacts/:id', async (req, res, next) => {
     // Get the existing contact before update
     const existingContact = await Contact.findById(req.params.id);
 
-    // If customer is provided, fetch firmName from customer
+    // Handle customers array (new) or single customer (backward compatibility)
+    let customerIds = [];
+    if (customers && Array.isArray(customers) && customers.length > 0) {
+      customerIds = customers.filter(id => id && id !== '');
+    } else if (customer) {
+      customerIds = [customer];
+    }
+
+    // Fetch firm names from customers
     let finalFirmName = firmName;
-    let customerDoc = null;
-    if (customer) {
-      customerDoc = await Customer.findById(customer);
-      if (customerDoc) {
-        finalFirmName = customerDoc.firmName || customerDoc.name;
+    const customerDocs = [];
+    for (const custId of customerIds) {
+      const doc = await Customer.findById(custId);
+      if (doc) {
+        customerDocs.push(doc);
+        if (!finalFirmName && doc.firmName) {
+          finalFirmName = doc.firmName;
+        }
       }
     }
 
@@ -1090,7 +1309,8 @@ router.put('/contacts/:id', async (req, res, next) => {
       middleName: middleName || undefined,
       lastName: lastName || undefined,
       name: fullName || name,
-      customer: customer || null,
+      customers: customerIds,
+      customer: customerIds[0] || null, // Backward compatibility
       firmName: finalFirmName,
       designation: designation || undefined,
       landmark: landmark || undefined,
@@ -1121,7 +1341,8 @@ router.put('/contacts/:id', async (req, res, next) => {
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    ).populate('customer', 'firmName name mobile');
+    ).populate('customers', 'firmName name mobile');
+    await contact.populate('customer', 'firmName name mobile');
 
     if (!contact) {
       return res.status(404).json({ success: false, message: 'Contact not found' });
@@ -1129,20 +1350,26 @@ router.put('/contacts/:id', async (req, res, next) => {
 
     // Sync changes to customer's contactPersons array
     try {
-      // If the contact was previously linked to a different customer, update old customer
-      if (existingContact && existingContact.customer && existingContact.customer.toString() !== (customer || '').toString()) {
-        const oldCustomer = await Customer.findById(existingContact.customer);
-        if (oldCustomer && existingContact.name) {
-          // Remove from old customer's contactPersons by name
-          oldCustomer.contactPersons = oldCustomer.contactPersons.filter(
-            cp => !cp.name || cp.name.toLowerCase() !== existingContact.name.toLowerCase()
-          );
-          await oldCustomer.save();
+      // Get old customers from existing contact (support both array and single)
+      const oldCustomerIds = existingContact?.customers ||
+        (existingContact?.customer ? [existingContact.customer.toString()] : []);
+      const newCustomerIds = customerIds.map(id => id.toString());
+
+      // Remove from customers that are no longer linked
+      for (const oldId of oldCustomerIds) {
+        if (!newCustomerIds.includes(oldId)) {
+          const oldCustomer = await Customer.findById(oldId);
+          if (oldCustomer && existingContact?.name) {
+            oldCustomer.contactPersons = oldCustomer.contactPersons.filter(
+              cp => !cp.name || cp.name.toLowerCase() !== existingContact.name.toLowerCase()
+            );
+            await oldCustomer.save();
+          }
         }
       }
 
-      // If linked to a new customer, update their contactPersons
-      if (customerDoc) {
+      // Add/update to new customers
+      for (const customerDoc of customerDocs) {
         // Find existing by name
         const existingContactIndex = customerDoc.contactPersons.findIndex(
           cp => cp.name && fullName && cp.name.toLowerCase() === fullName.toLowerCase()
@@ -1201,18 +1428,20 @@ router.delete('/contacts/:id', async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Contact not found' });
     }
 
-    // Store contact info before deletion
-    const customerId = contact.customer;
+    // Store contact info before deletion (support both array and single)
+    const customerIds = contact.customers?.length > 0
+      ? contact.customers
+      : (contact.customer ? [contact.customer] : []);
     const contactName = contact.name;
 
     // Delete the contact
     await Contact.findByIdAndDelete(req.params.id);
 
-    // If linked to a customer, also remove from customer's contactPersons array
-    if (customerId && contactName) {
+    // Remove from all linked customers' contactPersons arrays
+    for (const custId of customerIds) {
       try {
-        const customerDoc = await Customer.findById(customerId);
-        if (customerDoc) {
+        const customerDoc = await Customer.findById(custId);
+        if (customerDoc && contactName) {
           customerDoc.contactPersons = customerDoc.contactPersons.filter(
             cp => !cp.name || cp.name.toLowerCase() !== contactName.toLowerCase()
           );
@@ -1230,23 +1459,17 @@ router.delete('/contacts/:id', async (req, res, next) => {
   }
 });
 
-// Get unique designations from contacts
-router.get('/contacts/designations', async (req, res, next) => {
-  try {
-    const designations = await Contact.distinct('designation', { designation: { $ne: null, $ne: '' } });
-    res.json({
-      success: true,
-      data: designations.filter(Boolean).sort()
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // Get contacts by customer ID
 router.get('/customers/:id/contacts', async (req, res, next) => {
   try {
-    const contacts = await Contact.find({ customer: req.params.id })
+    // Find contacts where customer matches OR customers array contains the ID
+    const contacts = await Contact.find({
+      $or: [
+        { customer: req.params.id },
+        { customers: req.params.id }
+      ]
+    })
+      .populate('customers', 'firmName name mobile')
       .populate('customer', 'firmName name mobile')
       .sort({ isPrimary: -1, createdAt: -1 });
 

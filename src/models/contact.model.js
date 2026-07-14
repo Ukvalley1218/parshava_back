@@ -24,7 +24,13 @@ const contactSchema = new mongoose.Schema({
     maxlength: 150
   },
 
-  // Linked Customer/Firm (optional - links to Customer collection)
+  // Linked Customers/Firms (multiple - links to Customer collection)
+  customers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer'
+  }],
+
+  // Backward compatibility - single customer reference
   customer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Customer',
@@ -160,5 +166,6 @@ contactSchema.index({
 contactSchema.index({ status: 1 });
 contactSchema.index({ createdAt: -1 });
 contactSchema.index({ customer: 1 });
+contactSchema.index({ customers: 1 });
 
 export default mongoose.model('Contact', contactSchema);

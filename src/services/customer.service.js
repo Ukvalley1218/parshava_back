@@ -194,13 +194,24 @@ class CustomerService {
     // Clean up data - convert empty strings to null for ObjectId fields
     const cleanedData = { ...data };
 
-    // List of ObjectId fields that should be null if empty
-    const objectIdFields = ['businessCategory', 'brandCategory', 'accountManager', 'productManager'];
+    // List of ObjectId fields that should be null if empty (single value)
+    const singleObjectIdFields = ['accountManager', 'productManager'];
 
-    objectIdFields.forEach(field => {
+    singleObjectIdFields.forEach(field => {
       if (cleanedData[field] === '' || cleanedData[field] === undefined) {
         cleanedData[field] = null;
       }
+    });
+
+    // List of ObjectId array fields that should be empty array if not provided
+    const arrayObjectIdFields = ['businessCategory', 'brandCategory'];
+
+    arrayObjectIdFields.forEach(field => {
+      if (!cleanedData[field] || !Array.isArray(cleanedData[field])) {
+        cleanedData[field] = [];
+      }
+      // Filter out empty strings
+      cleanedData[field] = cleanedData[field].filter(id => id && id !== '');
     });
 
     // Step 1: Save customer in MongoDB with syncStatus = pending

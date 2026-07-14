@@ -150,6 +150,22 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
 
+  // Price List Categories (C1, SI1, SI2, T1, T2)
+  c1: {
+    type: Number,
+    min: 0
+  },
+
+  si1: {
+    type: Number,
+    min: 0
+  },
+
+  si2: {
+    type: Number,
+    min: 0
+  },
+
   t1: {
     type: Number,
     min: 0
@@ -160,6 +176,7 @@ const productSchema = new mongoose.Schema({
     min: 0
   },
 
+  // Legacy tier prices (kept for backward compatibility)
   t3: {
     type: Number,
     min: 0
@@ -205,7 +222,23 @@ const productSchema = new mongoose.Schema({
   profit: { type: Number, min: 0, default: 0 },
   profitType: { type: String, enum: ['percent', 'flat'], default: 'percent' },
 
-  // OP Prices (Output Prices)
+  // OP Prices (Output Prices for each price list category)
+  // C1 - Customer Tier 1
+  opC1: { type: Number, min: 0, default: 0 },
+  opC1Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  // SI1 - System Integrator Tier 1
+  opSi1: { type: Number, min: 0, default: 0 },
+  opSi1Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  // SI2 - System Integrator Tier 2
+  opSi2: { type: Number, min: 0, default: 0 },
+  opSi2Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  // T1 - Trader Tier 1
+  opT1: { type: Number, min: 0, default: 0 },
+  opT1Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  // T2 - Trader Tier 2
+  opT2: { type: Number, min: 0, default: 0 },
+  opT2Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+  // Legacy OP fields (kept for backward compatibility)
   op1: { type: Number, min: 0, default: 0 },
   op1Type: { type: String, enum: ['percent', 'flat'], default: 'percent' },
   op2: { type: Number, min: 0, default: 0 },

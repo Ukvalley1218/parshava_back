@@ -97,15 +97,8 @@ export const createCustomerValidation = Joi.object({
     }),
   aadharNumber: Joi.string()
     .trim()
-    .length(12)
-    .pattern(/^\d{12}$/)
-    .required()
-    .messages({
-      'string.empty': 'Aadhar number is required',
-      'string.length': 'Aadhar number must be 12 digits',
-      'string.pattern.base': 'Enter valid 12-digit Aadhar number',
-      'any.required': 'Aadhar number is required'
-    }),
+    .allow('')
+    .optional(),
   shopActNumber: Joi.string()
     .trim()
     .required()
@@ -121,14 +114,14 @@ export const createCustomerValidation = Joi.object({
       'any.required': 'MSME number is required'
     }),
   priceListCategory: Joi.string()
-    .valid('T1', 'T2', 'T3', 'T4')
+    .valid('C1', 'SI1', 'SI2', 'T1', 'T2')
     .required()
     .messages({
-      'any.only': 'Price list must be T1, T2, T3, or T4',
+      'any.only': 'Price list must be C1, SI1, SI2, T1, or T2',
       'any.required': 'Price list is required'
     }),
   customerType: Joi.string()
-    .valid('customer', 'dealer', 'distributor', 'retailer')
+    .valid('customer', 'system integrator', 'reseller')
     .required()
     .messages({
       'any.only': 'Invalid customer type',
@@ -209,12 +202,12 @@ export const createCustomerValidation = Joi.object({
     }),
   documents: Joi.array().optional(),
 
-  // Categories (Optional)
-  businessCategory: Joi.string()
-    .allow('')
+  // Categories (Optional - multiple selection)
+  businessCategory: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional(),
-  brandCategory: Joi.string()
-    .allow('')
+  brandCategory: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional(),
 
   // Other optional fields
@@ -318,13 +311,13 @@ export const updateCustomerValidation = Joi.object({
     .trim()
     .optional(),
   priceListCategory: Joi.string()
-    .valid('T1', 'T2', 'T3', 'T4')
+    .valid('C1', 'SI1', 'SI2', 'T1', 'T2')
     .optional()
     .messages({
-      'any.only': 'Price list must be T1, T2, T3, or T4'
+      'any.only': 'Price list must be C1, SI1, SI2, T1, or T2'
     }),
   customerType: Joi.string()
-    .valid('customer', 'dealer', 'distributor', 'retailer')
+    .valid('customer', 'system integrator', 'reseller')
     .optional()
     .messages({
       'any.only': 'Invalid customer type'
@@ -381,11 +374,11 @@ export const updateCustomerValidation = Joi.object({
       'string.pattern.base': 'Enter valid GSTIN (15 characters)',
       'string.max': 'GSTIN cannot exceed 15 characters'
     }),
-  businessCategory: Joi.string()
-    .allow('')
+  businessCategory: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional(),
-  brandCategory: Joi.string()
-    .allow('')
+  brandCategory: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional(),
   notes: Joi.string()
     .trim()
