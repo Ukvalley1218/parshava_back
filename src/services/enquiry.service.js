@@ -84,6 +84,9 @@ class EnquiryService {
     // Filter by status
     if (status) {
       query.status = status;
+    } else {
+      // Exclude closed (soft-deleted) enquiries by default
+      query.status = { $ne: 'closed' };
     }
 
     // Non-admin users only see their own enquiries (created by them or assigned to them)
@@ -221,7 +224,9 @@ class EnquiryService {
   }
 
   /**
-   * Delete an enquiry (soft delete - set status to closed)
+   * Delete an enquiry
+   * - If already closed, hard delete (remove from DB)
+   * - Otherwise, soft delete (set status to closed)
    * @param {String} id - Enquiry ID
    * @returns {Object} Deleted enquiry
    */
@@ -232,6 +237,13 @@ class EnquiryService {
       throw new Error('Enquiry not found');
     }
 
+    if (enquiry.status === 'closed') {
+      // Already closed — hard delete
+      await Enquiry.findByIdAndDelete(id);
+      return enquiry;
+    }
+
+    // Soft delete — set status to closed
     enquiry.status = 'closed';
     await enquiry.save();
 
