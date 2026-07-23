@@ -399,8 +399,13 @@ router.get('/inquiries/:id', async (req, res, next) => {
 router.patch('/inquiries/:id/status', async (req, res, next) => {
   try {
     const { status } = req.body;
+    // Check current inquiry status first — cancelled inquiries cannot be changed
+    const existingInquiry = await Inquiry.findById(req.params.id);
+    if (!existingInquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    if (existingInquiry.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot change status of a cancelled quotation' });
+    }
     const inquiry = await Inquiry.findByIdAndUpdate(req.params.id, { status }, { new: true });
-    if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
     res.json({ success: true, message: 'Status updated successfully', data: inquiry });
   } catch (error) { next(error); }
 });
@@ -420,6 +425,16 @@ router.delete('/inquiries/:id', async (req, res, next) => {
 
 router.post('/inquiries/:id/convert', async (req, res, next) => {
   try {
+    // Check inquiry status — cancelled quotations cannot be converted
+    const inquiry = await Inquiry.findById(req.params.id);
+    if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    if (inquiry.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot convert a cancelled quotation' });
+    }
+    if (inquiry.status === 'converted') {
+      return res.status(400).json({ success: false, message: 'Quotation has already been converted' });
+    }
+
     // Use order service to create order with AccountGST sync
     const order = await orderService.createOrderFromInquiry(req.params.id, req.user._id);
 

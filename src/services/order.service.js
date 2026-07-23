@@ -212,6 +212,10 @@ class OrderService {
       throw new Error('Inquiry not found');
     }
 
+    if (inquiry.status === 'cancelled') {
+      throw new Error('Cannot convert a cancelled quotation');
+    }
+
     if (inquiry.status === 'converted') {
       throw new Error('Inquiry has already been converted to an order');
     }

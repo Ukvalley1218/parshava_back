@@ -2,10 +2,11 @@ import inquiryService from '../services/inquiry.service.js';
 import Inquiry from '../models/inquiry.model.js';
 
 // Helper to check if user is authorized to act on an inquiry (creator, assignee, or admin)
-const isAuthorizedForInquiry = (inquiry, userId) => {
-  const isCreator = inquiry.createdBy?.toString() === userId.toString();
-  const isAssignee = inquiry.assignedTo?.toString() === userId.toString();
-  const isAdmin = userId.role === 'admin' || userId.role === 'superadmin';
+const isAuthorizedForInquiry = (inquiry, user) => {
+  const userId = user._id.toString();
+  const isCreator = inquiry.createdBy?.toString() === userId;
+  const isAssignee = inquiry.assignedTo?.toString() === userId;
+  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   return isCreator || isAssignee || isAdmin;
 };
 
@@ -121,7 +122,7 @@ export const deleteInquiry = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Inquiry not found' });
     }
     if (!isAuthorizedForInquiry(inquiryDoc, req.user)) {
-      return res.status(403).json({ success: false, message: 'Not authorized to delete this inquiry' });
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this quotation' });
     }
 
     await inquiryService.deleteInquiry(req.params.id);

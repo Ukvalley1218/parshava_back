@@ -85,6 +85,20 @@ export const createUser = async (req, res, next) => {
   try {
     const { name, email, password, phone, role = 'user', isActive = true, assignedBrands = [] } = req.body;
 
+    // Validate required fields
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Name is required' });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password is required and must be at least 6 characters' });
+    }
+    if ((role === 'product_manager' || role === 'account_manager') && (!assignedBrands || assignedBrands.length === 0)) {
+      return res.status(400).json({ success: false, message: 'At least one brand must be assigned for this role' });
+    }
+
     // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
 
