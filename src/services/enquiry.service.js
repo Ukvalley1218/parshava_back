@@ -2,6 +2,20 @@ import Enquiry from '../models/enquiry.model.js';
 import Customer from '../models/customer.model.js';
 import Inquiry from '../models/inquiry.model.js';
 
+// Migrate old relatedQuotation (single) to relatedQuotations (array)
+Enquiry.find({ relatedQuotation: { $exists: true, $ne: null }, relatedQuotations: { $exists: false } })
+  .then(async (oldDocs) => {
+    for (const doc of oldDocs) {
+      if (doc.relatedQuotation && (!doc.relatedQuotations || doc.relatedQuotations.length === 0)) {
+        await Enquiry.updateOne(
+          { _id: doc._id },
+          { $set: { relatedQuotations: [doc.relatedQuotation] } }
+        );
+      }
+    }
+  })
+  .catch(() => {});
+
 class EnquiryService {
   /**
    * Create a new enquiry
@@ -56,7 +70,7 @@ class EnquiryService {
       .populate('accountManager', 'name email phone role')
       .populate('assignedTo', 'name email role')
       .populate('createdBy', 'name email')
-      .populate('relatedQuotation');
+      .populate('relatedQuotations');
   }
 
   /**
@@ -87,7 +101,7 @@ class EnquiryService {
         .populate('accountManager', 'name email phone role')
         .populate('assignedTo', 'name email role')
         .populate('createdBy', 'name email')
-        .populate('relatedQuotation')
+        .populate('relatedQuotations')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
@@ -119,7 +133,7 @@ class EnquiryService {
       .populate('accountManager', 'name email phone role')
       .populate('assignedTo', 'name email role')
       .populate('createdBy', 'name email')
-      .populate('relatedQuotation');
+      .populate('relatedQuotations');
 
     if (!enquiry) {
       throw new Error('Enquiry not found');
@@ -165,7 +179,7 @@ class EnquiryService {
       .populate('accountManager', 'name email phone role')
       .populate('assignedTo', 'name email role')
       .populate('createdBy', 'name email')
-      .populate('relatedQuotation');
+      .populate('relatedQuotations');
   }
 
   /**
@@ -187,7 +201,13 @@ class EnquiryService {
       throw new Error('Quotation not found');
     }
 
-    enquiry.relatedQuotation = quotationId;
+    // Add quotation to the array if not already linked
+    if (!enquiry.relatedQuotations) {
+      enquiry.relatedQuotations = [];
+    }
+    if (!enquiry.relatedQuotations.includes(quotationId)) {
+      enquiry.relatedQuotations.push(quotationId);
+    }
     enquiry.status = 'quoted';
 
     await enquiry.save();
@@ -197,7 +217,7 @@ class EnquiryService {
       .populate('accountManager', 'name email phone role')
       .populate('assignedTo', 'name email role')
       .populate('createdBy', 'name email')
-      .populate('relatedQuotation');
+      .populate('relatedQuotations');
   }
 
   /**

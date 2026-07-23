@@ -64,11 +64,10 @@ const enquirySchema = new mongoose.Schema({
     enum: ['open', 'in_progress', 'quoted', 'closed'],
     default: 'open'
   },
-  relatedQuotation: {
+  relatedQuotations: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Inquiry',
-    default: null
-  },
+    ref: 'Inquiry'
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

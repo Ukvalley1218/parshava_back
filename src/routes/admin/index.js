@@ -380,7 +380,7 @@ router.get('/inquiries', async (req, res, next) => {
       Inquiry.countDocuments(query)
     ]);
 
-    res.json({ success: true, data: inquiries, pagination: { currentPage: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)), totalItems: total } });
+    res.json({ success: true, data: inquiries, pagination: { currentPage: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)), totalItems: total, itemsPerPage: parseInt(limit) } });
   } catch (error) { next(error); }
 });
 
