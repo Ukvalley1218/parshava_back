@@ -22,6 +22,18 @@ const inquiryItemSchema = new mongoose.Schema({
   partNumber: {
     type: String
   },
+  series: {
+    type: String
+  },
+  boxSize: {
+    type: String
+  },
+  stock: {
+    type: Number
+  },
+  shortDescription: {
+    type: String
+  },
   imgurl: {
     type: String,
     default: null
@@ -68,7 +80,8 @@ const inquirySchema = new mongoose.Schema({
   address: String,
   city: String,
   state: String,
-  gstin: String
+  gstin: String,
+  priceListCategory: String
 },
   // Contact person for this inquiry/quotation
   contactPerson: {
@@ -108,6 +121,29 @@ const inquirySchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  assignedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  assignedAt: {
+    type: Date,
+    default: null
+  },
+  inquiryId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  notes: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
@@ -116,5 +152,6 @@ const inquirySchema = new mongoose.Schema({
 inquirySchema.index({ customerId: 1 });
 inquirySchema.index({ status: 1 });
 inquirySchema.index({ createdBy: 1 });
+inquirySchema.index({ assignedTo: 1 });
 
 export default mongoose.model('Inquiry', inquirySchema);

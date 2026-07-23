@@ -291,7 +291,7 @@ class CustomerService {
    * @param {Object} options - Query options
    * @returns {Object} Customers with pagination info
    */
-  async getCustomers({ page = 1, limit = 10, search = '', city = '', cities = '' }) {
+  async getCustomers({ page = 1, limit = 10, search = '', city = '', cities = '', accountManager = null }) {
     const query = {};
 
     // Use regex search for partial matching (e.g., "bar" matches "Barcode Printer")
@@ -325,12 +325,18 @@ class CustomerService {
       }
     }
 
+    // Filter by accountManager (for role-based access)
+    if (accountManager) {
+      query.accountManager = { $in: [accountManager] };
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Fetch customers
     const [customers, total] = await Promise.all([
       Customer.find(query)
-        .select('name firmName mobile email city state address outstanding status contactPerson accountgstId syncStatus priceListCategory createdAt')
+        .select('name firmName mobile email city state address outstanding status contactPerson accountgstId syncStatus priceListCategory accountType accountManager createdAt')
+        .populate('accountManager', 'name email phone')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
@@ -411,7 +417,9 @@ class CustomerService {
    * @returns {Object} Customer details with purchase info
    */
   async getCustomerById(customerId) {
-    const customer = await Customer.findById(customerId).lean();
+    const customer = await Customer.findById(customerId)
+      .populate('accountManager', 'name email phone')
+      .lean();
 
     if (!customer) {
       throw new Error('Customer not found');

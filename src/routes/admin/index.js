@@ -22,6 +22,7 @@ import {
 } from '../../controllers/admin/dashboard.controller.js';
 import Customer from '../../models/customer.model.js';
 import Inquiry from '../../models/inquiry.model.js';
+import User from '../../models/User.js';
 import Order from '../../models/order.model.js';
 import Product from '../../models/product.model.js';
 import Brand from '../../models/brand.model.js';
@@ -97,6 +98,7 @@ router.get('/customers', async (req, res, next) => {
       Customer.find(query)
         .populate('businessCategory')
         .populate('brandCategory')
+        .populate('accountManager', 'name email phone')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -120,11 +122,61 @@ router.get('/customers', async (req, res, next) => {
   }
 });
 
+// Bulk update customers (for applying changes to specific accounts on current page)
+router.post('/customers/bulk-update', async (req, res, next) => {
+  try {
+    const { customerIds, updates } = req.body;
+
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No updates provided'
+      });
+    }
+
+    if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No customers selected for update'
+      });
+    }
+
+    // Only allow specific fields to be bulk updated
+    const allowedFields = ['businessCategory', 'brandCategory', 'priceListCategory', 'accountType', 'accountManager'];
+    const cleanUpdates = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        cleanUpdates[key] = value;
+      }
+    }
+
+    if (Object.keys(cleanUpdates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update'
+      });
+    }
+
+    const query = { _id: { $in: customerIds } };
+    const result = await Customer.updateMany(query, cleanUpdates);
+
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} account(s) updated successfully`,
+      matched: result.matchedCount,
+      modified: result.modifiedCount
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/customers/:id', async (req, res, next) => {
   try {
     const customer = await Customer.findById(req.params.id)
       .populate('businessCategory')
-      .populate('brandCategory');
+      .populate('brandCategory')
+      .populate('accountManager', 'name email phone');
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
     res.json({ success: true, data: customer });
   } catch (error) { next(error); }
@@ -132,6 +184,48 @@ router.get('/customers/:id', async (req, res, next) => {
 
 router.post('/customers', async (req, res, next) => {
   try {
+    // Check for duplicate mobile numbers
+    const { mobile, mobile2, mobile3, email } = req.body;
+    const mobileNumbers = [mobile, mobile2, mobile3].filter(n => n && n.trim() !== '');
+    const emailValue = email && email.trim() !== '' ? email.trim().toLowerCase() : null;
+
+    if (mobileNumbers.length > 0) {
+      const existingMobile = await Customer.findOne({
+        $or: mobileNumbers.map(num => ({ mobile: num })),
+      });
+      if (existingMobile) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with mobile number ${existingMobile.mobile} already exists`
+        });
+      }
+
+      // Also check mobile2 and mobile3 against all existing mobile fields
+      const existingOtherMobile = await Customer.findOne({
+        $or: mobileNumbers.flatMap(num => [
+          { mobile: num },
+          { mobile2: num },
+          { mobile3: num }
+        ])
+      });
+      if (existingOtherMobile) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this mobile number already exists`
+        });
+      }
+    }
+
+    if (emailValue) {
+      const existingEmail = await Customer.findOne({ email: emailValue });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this email already exists`
+        });
+      }
+    }
+
     // Use customer service to create customer with AccountGST sync
     const customer = await customerService.createCustomer(req.body, req.user._id);
 
@@ -151,11 +245,44 @@ router.post('/customers', async (req, res, next) => {
 
 router.put('/customers/:id', async (req, res, next) => {
   try {
+    // Check for duplicate mobile numbers (excluding current customer)
+    const { mobile, mobile2, mobile3, email } = req.body;
+    const mobileNumbers = [mobile, mobile2, mobile3].filter(n => n && n.trim() !== '');
+    const emailValue = email && email.trim() !== '' ? email.trim().toLowerCase() : null;
+    const customerId = req.params.id;
+
+    if (mobileNumbers.length > 0) {
+      const existingOtherMobile = await Customer.findOne({
+        _id: { $ne: customerId },
+        $or: mobileNumbers.flatMap(num => [
+          { mobile: num },
+          { mobile2: num },
+          { mobile3: num }
+        ])
+      });
+      if (existingOtherMobile) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this mobile number already exists`
+        });
+      }
+    }
+
+    if (emailValue) {
+      const existingEmail = await Customer.findOne({ _id: { $ne: customerId }, email: emailValue });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this email already exists`
+        });
+      }
+    }
+
     // Clean up data - convert empty strings to null for ObjectId fields
     const cleanedData = { ...req.body };
 
     // Single ObjectId fields
-    const singleObjectIdFields = ['accountManager', 'productManager'];
+    const singleObjectIdFields = ['productManager'];
     singleObjectIdFields.forEach(field => {
       if (cleanedData[field] === '' || cleanedData[field] === undefined) {
         cleanedData[field] = null;
@@ -163,7 +290,7 @@ router.put('/customers/:id', async (req, res, next) => {
     });
 
     // Array ObjectId fields
-    const arrayObjectIdFields = ['businessCategory', 'brandCategory'];
+    const arrayObjectIdFields = ['businessCategory', 'brandCategory', 'accountManager'];
     arrayObjectIdFields.forEach(field => {
       if (!cleanedData[field] || !Array.isArray(cleanedData[field])) {
         cleanedData[field] = [];
@@ -179,7 +306,7 @@ router.put('/customers/:id', async (req, res, next) => {
         new: true,
         runValidators: true
       }
-    );
+    ).populate('accountManager', 'name email phone');
 
     if (!customer) {
       return res.status(404).json({
@@ -249,7 +376,7 @@ router.get('/inquiries', async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [inquiries, total] = await Promise.all([
-      Inquiry.find(query).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Inquiry.find(query).populate('createdBy', 'name email').populate('assignedTo', 'name email role').populate('assignedBy', 'name email role').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
       Inquiry.countDocuments(query)
     ]);
 
@@ -259,7 +386,7 @@ router.get('/inquiries', async (req, res, next) => {
 
 router.get('/inquiries/:id', async (req, res, next) => {
   try {
-    const inquiry = await Inquiry.findById(req.params.id).populate('customerId').populate('createdBy', 'name email');
+    const inquiry = await Inquiry.findById(req.params.id).populate('customerId').populate('createdBy', 'name email').populate('assignedTo', 'name email role').populate('assignedBy', 'name email role');
     if (!inquiry) return res.status(404).json({ success: false, message: 'Inquiry not found' });
     // Don't return cancelled inquiries unless explicitly requested
     if (inquiry.status === 'cancelled') {
@@ -304,6 +431,57 @@ router.post('/inquiries/:id/convert', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// @desc    Assign inquiry to a user (admin)
+// @route   POST /admin/inquiries/:id/assign
+// @access  Admin
+router.post('/inquiries/:id/assign', async (req, res, next) => {
+  try {
+    const { assignedToUserId } = req.body;
+
+    if (!assignedToUserId) {
+      return res.status(400).json({ success: false, message: 'assignedToUserId is required' });
+    }
+
+    const inquiry = await Inquiry.findById(req.params.id);
+    if (!inquiry || inquiry.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+
+    // Verify assigned user exists and is active
+    const assignedUser = await User.findById(assignedToUserId);
+    if (!assignedUser || !assignedUser.isActive) {
+      return res.status(400).json({ success: false, message: 'Assigned user not found or inactive' });
+    }
+
+    inquiry.assignedTo = assignedToUserId;
+    inquiry.assignedBy = req.user._id;
+    inquiry.assignedAt = new Date();
+    await inquiry.save();
+
+    const updatedInquiry = await Inquiry.findById(inquiry._id)
+      .populate('customerId')
+      .populate('createdBy', 'name email')
+      .populate('assignedTo', 'name email role')
+      .populate('assignedBy', 'name email role');
+
+    res.json({ success: true, message: 'Inquiry assigned successfully', data: updatedInquiry });
+  } catch (error) { next(error); }
+});
+
+// @desc    Get users for assignment dropdown (admin)
+// @route   GET /admin/inquiries/users
+// @access  Admin
+router.get('/inquiries/users', async (req, res, next) => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('name email role')
+      .sort({ name: 1 })
+      .lean();
+
+    res.json({ success: true, data: users });
+  } catch (error) { next(error); }
 });
 
 // ============================================
@@ -443,6 +621,7 @@ router.post('/products', async (req, res, next) => {
       imageUrl: processedBody.imageUrl,
       partNumber: processedBody.partNumber,
       description: processedBody.description,
+      shortDescription: processedBody.shortDescription,
       brand: processedBody.brand,
       brandId: processedBody.brandId,
       category: processedBody.category,
@@ -456,6 +635,8 @@ router.post('/products', async (req, res, next) => {
       mop: processedBody.mop,
       purchasePrice: processedBody.purchasePrice,
       marketPrice: processedBody.marketPrice,
+      marketPriceSI: processedBody.marketPriceSI,
+      marketPriceReseller: processedBody.marketPriceReseller,
       // Pricing calculator fields
       basePriceType: processedBody.basePriceType,
       dis1: processedBody.dis1,
@@ -610,8 +791,13 @@ router.post('/products/bulk-update', async (req, res, next) => {
         }
       };
 
+      // Determine base for SI prices: use marketPriceSI if set, otherwise priceWithProfit
+      const siBase = (parseFloat(merged.marketPriceSI) > 0) ? parseFloat(merged.marketPriceSI) : priceWithProfit;
+      // Determine base for T prices: use marketPriceReseller if set, otherwise priceWithProfit
+      const tBase = (parseFloat(merged.marketPriceReseller) > 0) ? parseFloat(merged.marketPriceReseller) : priceWithProfit;
+
       // Calculate SI1 price from SI1 margin
-      const si1Price = calculateOpPrice('opSi1', 'opSi1Type', priceWithProfit);
+      const si1Price = calculateOpPrice('opSi1', 'opSi1Type', siBase);
 
       // Calculate SI2 = SI1 + 1% (auto-calculated)
       const si2Price = Math.round(si1Price * 1.01 * 100) / 100;
@@ -620,7 +806,7 @@ router.post('/products/bulk-update', async (req, res, next) => {
       const c1Price = Math.round(si1Price * 1.20 * 100) / 100;
 
       // Calculate T1 price from T1 margin
-      const t1Price = calculateOpPrice('opT1', 'opT1Type', priceWithProfit);
+      const t1Price = calculateOpPrice('opT1', 'opT1Type', tBase);
 
       // Calculate T2 = T1 + 0.5% (auto-calculated)
       const t2Price = Math.round(t1Price * 1.005 * 100) / 100;
@@ -636,7 +822,7 @@ router.post('/products/bulk-update', async (req, res, next) => {
     };
 
     // Check if we're updating pricing-related fields
-    const pricingFields = ['dis1', 'dis1Type', 'dis2', 'dis2Type', 'dis3', 'dis3Type', 'dis4', 'dis4Type', 'dis5', 'dis5Type', 'opSi1', 'opSi1Type', 'opT1', 'opT1Type', 'mrp', 'mop', 'purchasePrice', 'marketPrice', 'basePriceType', 'gstRate', 'profit', 'profitType'];
+    const pricingFields = ['dis1', 'dis1Type', 'dis2', 'dis2Type', 'dis3', 'dis3Type', 'dis4', 'dis4Type', 'dis5', 'dis5Type', 'opSi1', 'opSi1Type', 'opT1', 'opT1Type', 'mrp', 'mop', 'purchasePrice', 'marketPrice', 'marketPriceSI', 'marketPriceReseller', 'basePriceType', 'gstRate', 'profit', 'profitType'];
     const isPricingUpdate = Object.keys(updates).some(key => pricingFields.includes(key));
 
     // Update each product
@@ -1176,6 +1362,35 @@ router.post('/contacts', async (req, res, next) => {
       }
     }
 
+    // Check for duplicate mobile numbers across contacts
+    const contactMobileNumbers = [mobile1, mobile2, mobile3].filter(n => n && n.trim() !== '');
+    if (contactMobileNumbers.length > 0) {
+      const existingContact = await Contact.findOne({
+        $or: contactMobileNumbers.flatMap(num => [
+          { mobile1: num },
+          { mobile2: num },
+          { mobile3: num }
+        ])
+      });
+      if (existingContact) {
+        return res.status(400).json({
+          success: false,
+          message: `A contact with this mobile number already exists`
+        });
+      }
+    }
+
+    // Check for duplicate email across contacts
+    if (email && email.trim() !== '') {
+      const existingContactEmail = await Contact.findOne({ email: email.trim().toLowerCase() });
+      if (existingContactEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A contact with this email already exists`
+        });
+      }
+    }
+
     const contact = await Contact.create({
       firstName: firstName || undefined,
       middleName: middleName || undefined,
@@ -1301,6 +1516,39 @@ router.put('/contacts/:id', async (req, res, next) => {
         if (!finalFirmName && doc.firmName) {
           finalFirmName = doc.firmName;
         }
+      }
+    }
+
+    // Check for duplicate mobile numbers across contacts (excluding current contact)
+    const contactMobileNumbers = [mobile1, mobile2, mobile3].filter(n => n && n.trim() !== '');
+    if (contactMobileNumbers.length > 0) {
+      const existingContactMobile = await Contact.findOne({
+        _id: { $ne: req.params.id },
+        $or: contactMobileNumbers.flatMap(num => [
+          { mobile1: num },
+          { mobile2: num },
+          { mobile3: num }
+        ])
+      });
+      if (existingContactMobile) {
+        return res.status(400).json({
+          success: false,
+          message: `A contact with this mobile number already exists`
+        });
+      }
+    }
+
+    // Check for duplicate email across contacts (excluding current contact)
+    if (email && email.trim() !== '') {
+      const existingContactEmail = await Contact.findOne({
+        _id: { $ne: req.params.id },
+        email: email.trim().toLowerCase()
+      });
+      if (existingContactEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A contact with this email already exists`
+        });
       }
     }
 

@@ -61,10 +61,30 @@ class DashboardService {
   ]);
 
   // Total outstanding from Sales model (pending invoices from accounting system)
+  // Only count Sales belonging to customers with refType "Salesman"
   const outstandingResult = await Sale.aggregate([
     {
       $match: {
         pendingAmount: { $gt: 0 }
+      }
+    },
+    {
+      $lookup: {
+        from: 'customers',
+        localField: 'customerId',
+        foreignField: '_id',
+        as: 'customer'
+      }
+    },
+    {
+      $unwind: {
+        path: '$customer',
+        preserveNullAndEmptyArrays: false
+      }
+    },
+    {
+      $match: {
+        'customer.refType': 'Salesman'
       }
     },
     {
@@ -76,6 +96,7 @@ class DashboardService {
   ]);
 
   // Overdue invoices (>30 days) from Sales model
+  // Only count Sales belonging to customers with refType "Salesman"
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -84,6 +105,25 @@ class DashboardService {
       $match: {
         pendingAmount: { $gt: 0 },
         invoiceDate: { $lt: thirtyDaysAgo }
+      }
+    },
+    {
+      $lookup: {
+        from: 'customers',
+        localField: 'customerId',
+        foreignField: '_id',
+        as: 'customer'
+      }
+    },
+    {
+      $unwind: {
+        path: '$customer',
+        preserveNullAndEmptyArrays: false
+      }
+    },
+    {
+      $match: {
+        'customer.refType': 'Salesman'
       }
     },
     {
@@ -197,6 +237,11 @@ class DashboardService {
         }
       },
       {
+        $match: {
+          'customer.refType': 'Salesman'
+        }
+      },
+      {
         $addFields: {
           overdueDays: {
             $cond: {
@@ -275,6 +320,11 @@ class DashboardService {
         $unwind: {
           path: '$customer',
           preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $match: {
+          'customer.refType': 'Salesman'
         }
       },
       {

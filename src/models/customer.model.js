@@ -232,10 +232,10 @@ const customerSchema = new mongoose.Schema({
   },
 
   // Internal Managers
-  accountManager: {
-    type: String,
-    trim: true
-  },
+  accountManager: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
 
   productManager: {
     type: String,
@@ -247,6 +247,11 @@ const customerSchema = new mongoose.Schema({
     type: String,
     enum: ['customer', 'system integrator', 'reseller'],
     default: 'customer'
+  },
+  accountType: {
+    type: String,
+    enum: ['in_house', 'shop'],
+    default: 'in_house'
   },
 
   customerStatus: {

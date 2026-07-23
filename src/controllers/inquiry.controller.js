@@ -1,4 +1,13 @@
 import inquiryService from '../services/inquiry.service.js';
+import Inquiry from '../models/inquiry.model.js';
+
+// Helper to check if user is authorized to act on an inquiry (creator, assignee, or admin)
+const isAuthorizedForInquiry = (inquiry, userId) => {
+  const isCreator = inquiry.createdBy?.toString() === userId.toString();
+  const isAssignee = inquiry.assignedTo?.toString() === userId.toString();
+  const isAdmin = userId.role === 'admin' || userId.role === 'superadmin';
+  return isCreator || isAssignee || isAdmin;
+};
 
 // @desc    Create a new inquiry
 // @route   POST /api/inquiries
@@ -71,6 +80,15 @@ export const getInquiryById = async (req, res, next) => {
 // @access  Private
 export const updateInquiry = async (req, res, next) => {
   try {
+    // Authorization check
+    const inquiryDoc = await Inquiry.findById(req.params.id);
+    if (!inquiryDoc || inquiryDoc.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+    if (!isAuthorizedForInquiry(inquiryDoc, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this inquiry' });
+    }
+
     const inquiry = await inquiryService.updateInquiry(
       req.params.id,
       req.body
@@ -97,6 +115,15 @@ export const updateInquiry = async (req, res, next) => {
 // @access  Private
 export const deleteInquiry = async (req, res, next) => {
   try {
+    // Authorization check
+    const inquiryDoc = await Inquiry.findById(req.params.id);
+    if (!inquiryDoc || inquiryDoc.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+    if (!isAuthorizedForInquiry(inquiryDoc, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this inquiry' });
+    }
+
     await inquiryService.deleteInquiry(req.params.id);
 
     res.json({
@@ -119,6 +146,15 @@ export const deleteInquiry = async (req, res, next) => {
 // @access  Private
 export const addProduct = async (req, res, next) => {
   try {
+    // Authorization check
+    const inquiryDoc = await Inquiry.findById(req.params.id);
+    if (!inquiryDoc || inquiryDoc.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+    if (!isAuthorizedForInquiry(inquiryDoc, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this inquiry' });
+    }
+
     const inquiry = await inquiryService.addProductToInquiry(
       req.params.id,
       req.body.productId,
@@ -153,6 +189,15 @@ export const addProduct = async (req, res, next) => {
 // @access  Private
 export const updateProduct = async (req, res, next) => {
   try {
+    // Authorization check
+    const inquiryDoc = await Inquiry.findById(req.params.id);
+    if (!inquiryDoc || inquiryDoc.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+    if (!isAuthorizedForInquiry(inquiryDoc, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this inquiry' });
+    }
+
     const inquiry = await inquiryService.updateInquiryProduct(
       req.params.id,
       req.body.productId,
@@ -187,6 +232,15 @@ export const updateProduct = async (req, res, next) => {
 // @access  Private
 export const removeProduct = async (req, res, next) => {
   try {
+    // Authorization check
+    const inquiryDoc = await Inquiry.findById(req.params.id);
+    if (!inquiryDoc || inquiryDoc.status === 'cancelled') {
+      return res.status(404).json({ success: false, message: 'Inquiry not found' });
+    }
+    if (!isAuthorizedForInquiry(inquiryDoc, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this inquiry' });
+    }
+
     const inquiry = await inquiryService.removeInquiryProduct(
       req.params.id,
       req.body.productId
@@ -369,6 +423,288 @@ export const submitCart = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Cart is empty'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Assign inquiry to another user
+// @route   POST /api/inquiries/:id/assign
+// @access  Private
+export const assignInquiry = async (req, res, next) => {
+  try {
+    const { assignedToUserId } = req.body;
+
+    if (!assignedToUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'assignedToUserId is required'
+      });
+    }
+
+    // Check that the inquiry exists and belongs to the user (or is assigned to them)
+    const inquiry = await Inquiry.findById(req.params.id);
+    if (!inquiry || inquiry.status === 'cancelled') {
+      return res.status(404).json({
+        success: false,
+        message: 'Inquiry not found'
+      });
+    }
+
+    // Only the creator, current assignee, or admin can reassign
+    const isCreator = inquiry.createdBy?.toString() === req.user._id.toString();
+    const isAssignee = inquiry.assignedTo?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin';
+
+    if (!isCreator && !isAssignee && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only assign inquiries you created or are assigned to'
+      });
+    }
+
+    // Can't assign to self
+    if (assignedToUserId === req.user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot assign an inquiry to yourself'
+      });
+    }
+
+    const updatedInquiry = await inquiryService.assignInquiry(
+      req.params.id,
+      assignedToUserId,
+      req.user._id
+    );
+
+    res.json({
+      success: true,
+      message: 'Inquiry assigned successfully',
+      data: updatedInquiry
+    });
+  } catch (error) {
+    if (error.message === 'Inquiry not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Inquiry not found'
+      });
+    }
+    if (error.message === 'Assigned user not found or inactive') {
+      return res.status(400).json({
+        success: false,
+        message: 'Assigned user not found or inactive'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Get users available for inquiry assignment
+// @route   GET /api/inquiries/users
+// @access  Private
+export const getUsersForAssignment = async (req, res, next) => {
+  try {
+    const users = await inquiryService.getUsersForAssignment(req.user._id);
+
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================
+// QUOTATION CART CONTROLLERS
+// ============================================
+
+// @desc    Create a quotation cart (with customer pre-selected)
+// @route   POST /api/inquiries/quotation
+// @access  Private
+export const createQuotationCart = async (req, res, next) => {
+  try {
+    const { customerId } = req.body;
+
+    const quotation = await inquiryService.createQuotationCart(
+      req.user._id,
+      customerId
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Quotation created successfully',
+      data: quotation
+    });
+  } catch (error) {
+    if (error.message === 'Customer not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Get quotation by ID
+// @route   GET /api/inquiries/quotation/:id
+// @access  Private
+export const getQuotation = async (req, res, next) => {
+  try {
+    const quotation = await inquiryService.getQuotationById(req.params.id);
+
+    res.json({
+      success: true,
+      data: quotation
+    });
+  } catch (error) {
+    if (error.message === 'Quotation not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Add product to quotation cart
+// @route   POST /api/inquiries/quotation/:id/add-product
+// @access  Private
+export const addQuotationProduct = async (req, res, next) => {
+  try {
+    const { productId, qty, discount } = req.body;
+
+    const quotation = await inquiryService.addProductToQuotationCart(
+      req.params.id,
+      productId,
+      qty || 1,
+      discount || 0
+    );
+
+    res.json({
+      success: true,
+      message: 'Product added to quotation',
+      data: quotation
+    });
+  } catch (error) {
+    if (error.message === 'Quotation not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    if (error.message === 'Product not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Update product in quotation cart
+// @route   PATCH /api/inquiries/quotation/:id/update-product/:productId
+// @access  Private
+export const updateQuotationProduct = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const { qty, discount } = req.body;
+
+    const quotation = await inquiryService.updateQuotationCartItem(
+      req.params.id,
+      productId,
+      { qty, discount }
+    );
+
+    res.json({
+      success: true,
+      message: 'Product updated in quotation',
+      data: quotation
+    });
+  } catch (error) {
+    if (error.message === 'Quotation not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    if (error.message === 'Product not found in quotation') {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found in quotation'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Remove product from quotation cart
+// @route   DELETE /api/inquiries/quotation/:id/remove-product/:productId
+// @access  Private
+export const removeQuotationProduct = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const quotation = await inquiryService.removeQuotationCartItem(
+      req.params.id,
+      productId
+    );
+
+    res.json({
+      success: true,
+      message: 'Product removed from quotation',
+      data: quotation
+    });
+  } catch (error) {
+    if (error.message === 'Quotation not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    next(error);
+  }
+};
+
+// @desc    Submit quotation (finalize)
+// @route   POST /api/inquiries/quotation/:id/submit
+// @access  Private
+export const submitQuotation = async (req, res, next) => {
+  try {
+    const { notes, contactPerson } = req.body;
+
+    const quotation = await inquiryService.submitQuotationCart(
+      req.params.id,
+      notes,
+      contactPerson
+    );
+
+    res.json({
+      success: true,
+      message: 'Quotation submitted successfully',
+      data: quotation
+    });
+  } catch (error) {
+    if (error.message === 'Quotation not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    if (error.message === 'No customer assigned to this quotation') {
+      return res.status(400).json({
+        success: false,
+        message: 'No customer assigned to this quotation'
+      });
+    }
+    if (error.message === 'Quotation has no items') {
+      return res.status(400).json({
+        success: false,
+        message: 'Quotation has no items'
       });
     }
     next(error);

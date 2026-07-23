@@ -22,6 +22,7 @@ import subcategoryRoutes from './src/routes/subcategory.routes.js'
 import seriesRoutes from './src/routes/series.routes.js'
 import businessCategoryRoutes from './src/routes/businessCategory.routes.js'
 import brandCategoryRoutes from './src/routes/brandCategory.routes.js'
+import enquiryRoutes from './src/routes/enquiry.routes.js'
 
 dotenv.config();
 startCronJobs()
@@ -64,6 +65,7 @@ app.use("/api/subcategories", subcategoryRoutes)
 app.use("/api/series", seriesRoutes)
 app.use("/api/business-categories", businessCategoryRoutes)
 app.use("/api/brand-categories", brandCategoryRoutes)
+app.use("/api/enquiries", enquiryRoutes)
 
 // Error handling
 app.use(notFound);

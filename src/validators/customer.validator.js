@@ -127,6 +127,12 @@ export const createCustomerValidation = Joi.object({
       'any.only': 'Invalid customer type',
       'any.required': 'Customer type is required'
     }),
+  accountType: Joi.string()
+    .valid('in_house', 'shop')
+    .optional()
+    .messages({
+      'any.only': 'Account type must be in_house or shop'
+    }),
   customerStatus: Joi.string()
     .valid('active', 'inactive', 'blocked')
     .required()
@@ -134,12 +140,11 @@ export const createCustomerValidation = Joi.object({
       'any.only': 'Invalid customer status',
       'any.required': 'Customer status is required'
     }),
-  accountManager: Joi.string()
-    .trim()
-    .required()
+  accountManager: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+    .default([])
     .messages({
-      'string.empty': 'Account manager is required',
-      'any.required': 'Account manager is required'
+      'array.base': 'Account manager must be an array'
     }),
   productManager: Joi.string()
     .trim()
@@ -328,8 +333,14 @@ export const updateCustomerValidation = Joi.object({
     .messages({
       'any.only': 'Invalid customer status'
     }),
-  accountManager: Joi.string()
-    .trim()
+  accountType: Joi.string()
+    .valid('in_house', 'shop')
+    .optional()
+    .messages({
+      'any.only': 'Account type must be in_house or shop'
+    }),
+  accountManager: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
     .optional(),
   productManager: Joi.string()
     .trim()
@@ -392,6 +403,29 @@ export const updateCustomerValidation = Joi.object({
     .optional()
     .messages({
       'number.min': 'Outstanding cannot be negative'
+    })
+});
+
+// Bulk update customer validation schema
+export const bulkUpdateCustomerValidation = Joi.object({
+  customerIds: Joi.array()
+    .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/))
+    .min(1)
+    .required()
+    .messages({
+      'array.min': 'At least one customer ID is required',
+      'any.required': 'Customer IDs are required'
+    }),
+  updates: Joi.object({
+    businessCategory: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional(),
+    brandCategory: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional(),
+    priceListCategory: Joi.string().valid('C1', 'SI1', 'SI2', 'T1', 'T2').optional(),
+    accountType: Joi.string().valid('in_house', 'shop').optional(),
+    accountManager: Joi.array().items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/)).optional()
+  }).min(1).required()
+    .messages({
+      'object.min': 'At least one field must be provided for update',
+      'any.required': 'Updates are required'
     })
 });
 

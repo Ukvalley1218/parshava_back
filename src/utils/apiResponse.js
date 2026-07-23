@@ -5,6 +5,7 @@ export const successResponse = (res, data, message = 'Success', statusCode = 200
     message,
     data
   });
+  
 };
 
 // Error response helper

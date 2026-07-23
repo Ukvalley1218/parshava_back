@@ -128,6 +128,14 @@ export const createProductValidation = Joi.object({
     .messages({
       'string.max': 'Description cannot exceed 1000 characters'
     }),
+  shortDescription: Joi.string()
+    .trim()
+    .max(200)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Short description cannot exceed 200 characters'
+    }),
   price: Joi.number()
     .min(0)
     .optional()
@@ -235,6 +243,14 @@ export const updateProductValidation = Joi.object({
     .allow('')
     .messages({
       'string.max': 'Description cannot exceed 1000 characters'
+    }),
+  shortDescription: Joi.string()
+    .trim()
+    .max(200)
+    .optional()
+    .allow('')
+    .messages({
+      'string.max': 'Short description cannot exceed 200 characters'
     }),
   price: Joi.number()
     .min(0)

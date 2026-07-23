@@ -1,10 +1,42 @@
 import customerService from '../services/customer.service.js';
+import Customer from '../models/customer.model.js';
 
 // @desc    Create a new customer
 // @route   POST /api/customers
 // @access  Private
 export const createCustomer = async (req, res, next) => {
   try {
+    // Check for duplicate mobile numbers
+    const { mobile, mobile2, mobile3, email } = req.body;
+    const mobileNumbers = [mobile, mobile2, mobile3].filter(n => n && n.trim() !== '');
+    const emailValue = email && email.trim() !== '' ? email.trim().toLowerCase() : null;
+
+    if (mobileNumbers.length > 0) {
+      const existingOtherMobile = await Customer.findOne({
+        $or: mobileNumbers.flatMap(num => [
+          { mobile: num },
+          { mobile2: num },
+          { mobile3: num }
+        ])
+      });
+      if (existingOtherMobile) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this mobile number already exists`
+        });
+      }
+    }
+
+    if (emailValue) {
+      const existingEmail = await Customer.findOne({ email: emailValue });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this email already exists`
+        });
+      }
+    }
+
     const customer = await customerService.createCustomer(req.body, req.user._id);
 
     res.status(201).json({
@@ -24,12 +56,19 @@ export const getCustomers = async (req, res, next) => {
   try {
     const { page, limit, search, city, cities } = req.query;
 
+    // If user is account_manager role, only show customers assigned to them
+    let accountManagerFilter = null;
+    if (req.user && req.user.role === 'account_manager') {
+      accountManagerFilter = req.user._id;
+    }
+
     const result = await customerService.getCustomers({
       page: page || 1,
       limit: limit || 10,
       search: search || '',
       city: city || '',
-      cities: cities || ''
+      cities: cities || '',
+      accountManager: accountManagerFilter
     });
 
     res.json({
@@ -65,6 +104,19 @@ export const getCustomerById = async (req, res, next) => {
   try {
     const result = await customerService.getCustomerById(req.params.id);
 
+    // If user is account_manager, only allow access to customers assigned to them
+    if (req.user && req.user.role === 'account_manager') {
+      const managerIds = (result.customer.accountManager || []).map(m =>
+        m._id ? m._id.toString() : m.toString()
+      );
+      if (!managerIds.includes(req.user._id.toString())) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied'
+        });
+      }
+    }
+
     res.json({
       success: true,
       data: result.customer,
@@ -87,6 +139,39 @@ export const getCustomerById = async (req, res, next) => {
 // @access  Private
 export const updateCustomer = async (req, res, next) => {
   try {
+    // Check for duplicate mobile numbers (excluding current customer)
+    const { mobile, mobile2, mobile3, email } = req.body;
+    const mobileNumbers = [mobile, mobile2, mobile3].filter(n => n && n.trim() !== '');
+    const emailValue = email && email.trim() !== '' ? email.trim().toLowerCase() : null;
+    const customerId = req.params.id;
+
+    if (mobileNumbers.length > 0) {
+      const existingOtherMobile = await Customer.findOne({
+        _id: { $ne: customerId },
+        $or: mobileNumbers.flatMap(num => [
+          { mobile: num },
+          { mobile2: num },
+          { mobile3: num }
+        ])
+      });
+      if (existingOtherMobile) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this mobile number already exists`
+        });
+      }
+    }
+
+    if (emailValue) {
+      const existingEmail = await Customer.findOne({ _id: { $ne: customerId }, email: emailValue });
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A customer with this email already exists`
+        });
+      }
+    }
+
     const customer = await customerService.updateCustomer(req.params.id, req.body);
 
     res.json({

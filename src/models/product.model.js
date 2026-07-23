@@ -26,6 +26,12 @@ const productSchema = new mongoose.Schema({
     maxlength: 1000
   },
 
+  shortDescription: {
+    type: String,
+    trim: true,
+    maxlength: 200
+  },
+
   // Brand - Independent
   brand: {
     type: String,
@@ -132,6 +138,18 @@ const productSchema = new mongoose.Schema({
   marketPrice: {
     type: Number,
     min: 0
+  },
+
+  marketPriceSI: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+
+  marketPriceReseller: {
+    type: Number,
+    min: 0,
+    default: 0
   },
 
   cnlc: {

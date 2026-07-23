@@ -13,7 +13,15 @@ import {
   updateCartItem,
   removeFromCart,
   clearCart,
-  submitCart
+  submitCart,
+  assignInquiry,
+  getUsersForAssignment,
+  createQuotationCart,
+  getQuotation,
+  addQuotationProduct,
+  updateQuotationProduct,
+  removeQuotationProduct,
+  submitQuotation
 } from '../controllers/inquiry.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.request.js';
@@ -26,7 +34,13 @@ import {
   addToCartValidation,
   updateCartItemValidation,
   updateCartItemBodyValidation,
-  submitCartValidation
+  submitCartValidation,
+  assignInquiryValidation,
+  createQuotationCartValidation,
+  addQuotationCartProductValidation,
+  updateQuotationCartItemValidation,
+  submitQuotationValidation,
+  quotationCartParamsValidation
 } from '../validators/inquiry.validator.js';
 
 const router = express.Router();
@@ -85,6 +99,67 @@ router.post(
 );
 
 // ============================================
+// QUOTATION CART ROUTES (must come before /:id routes)
+// ============================================
+
+// @route   POST /api/inquiries/quotation
+// @desc    Create a quotation cart (with customer pre-selected)
+// @access  Private
+router.post(
+  '/quotation',
+  validateRequest(createQuotationCartValidation),
+  createQuotationCart
+);
+
+// @route   GET /api/inquiries/quotation/:id
+// @desc    Get quotation by ID
+// @access  Private
+router.get(
+  '/quotation/:id',
+  validateRequest(inquiryIdValidation, 'params'),
+  getQuotation
+);
+
+// @route   POST /api/inquiries/quotation/:id/add-product
+// @desc    Add product to quotation cart
+// @access  Private
+router.post(
+  '/quotation/:id/add-product',
+  validateRequest(inquiryIdValidation, 'params'),
+  validateRequest(addQuotationCartProductValidation),
+  addQuotationProduct
+);
+
+// @route   PATCH /api/inquiries/quotation/:id/update-product/:productId
+// @desc    Update product in quotation cart
+// @access  Private
+router.patch(
+  '/quotation/:id/update-product/:productId',
+  validateRequest(quotationCartParamsValidation, 'params'),
+  validateRequest(updateQuotationCartItemValidation),
+  updateQuotationProduct
+);
+
+// @route   DELETE /api/inquiries/quotation/:id/remove-product/:productId
+// @desc    Remove product from quotation cart
+// @access  Private
+router.delete(
+  '/quotation/:id/remove-product/:productId',
+  validateRequest(quotationCartParamsValidation, 'params'),
+  removeQuotationProduct
+);
+
+// @route   POST /api/inquiries/quotation/:id/submit
+// @desc    Submit quotation (finalize)
+// @access  Private
+router.post(
+  '/quotation/:id/submit',
+  validateRequest(inquiryIdValidation, 'params'),
+  validateRequest(submitQuotationValidation),
+  submitQuotation
+);
+
+// ============================================
 // INQUIRY ROUTES
 // ============================================
 
@@ -101,6 +176,11 @@ router.post(
 // @desc    Get all inquiries with pagination and filters
 // @access  Private
 router.get('/', getInquiries);
+
+// @route   GET /api/inquiries/users
+// @desc    Get users available for inquiry assignment
+// @access  Private
+router.get('/users', getUsersForAssignment);
 
 // @route   GET /api/inquiries/:id
 // @desc    Get inquiry by ID
@@ -157,6 +237,16 @@ router.delete(
   '/:id/remove-product',
   validateRequest(inquiryIdValidation, 'params'),
   removeProduct
+);
+
+// @route   POST /api/inquiries/:id/assign
+// @desc    Assign inquiry to another user
+// @access  Private
+router.post(
+  '/:id/assign',
+  validateRequest(inquiryIdValidation, 'params'),
+  validateRequest(assignInquiryValidation),
+  assignInquiry
 );
 
 export default router;
