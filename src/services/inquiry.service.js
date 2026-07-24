@@ -5,6 +5,40 @@ import User from '../models/User.js';
 
 class InquiryService {
   /**
+   * Generate a unique inquiry ID by finding the max existing ID and incrementing.
+   * Uses retry logic to handle race conditions.
+   * @param {Number} maxRetries - Maximum retry attempts
+   * @returns {String} Unique inquiry ID (e.g. INQ000059)
+   */
+  async generateInquiryId(maxRetries = 5) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      // Find the maximum existing inquiryId (handles gaps from deleted docs)
+      const lastInquiry = await Inquiry.findOne({ inquiryId: { $ne: null } })
+        .sort({ inquiryId: -1 })
+        .select('inquiryId')
+        .lean();
+
+      let nextNum = 1;
+      if (lastInquiry && lastInquiry.inquiryId) {
+        const match = lastInquiry.inquiryId.match(/INQ(\d+)/);
+        if (match) {
+          nextNum = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      const newId = `INQ${String(nextNum).padStart(6, '0')}`;
+
+      // Verify this ID doesn't already exist (safety check for race conditions)
+      const existing = await Inquiry.findOne({ inquiryId: newId }).lean();
+      if (!existing) {
+        return newId;
+      }
+    }
+
+    throw new Error('Failed to generate unique inquiry ID after multiple attempts');
+  }
+
+  /**
    * Calculate totals for inquiry
    * @param {Array} items - Array of inquiry items
    * @returns {Object} Calculated totals
@@ -662,9 +696,8 @@ class InquiryService {
 
     cart.status = 'draft';
 
-    // Generate inquiry ID
-    const inquiryCount = await Inquiry.countDocuments();
-    cart.inquiryId = `INQ${String(inquiryCount + 1).padStart(6, '0')}`;
+    // Generate unique inquiry ID with retry for race conditions
+    cart.inquiryId = await this.generateInquiryId();
 
     await cart.save();
     console.log('Cart after save, contactPerson:', JSON.stringify(cart.contactPerson, null, 2));
@@ -1073,8 +1106,7 @@ class InquiryService {
 
     // Generate inquiry ID (only if not already set)
     if (!inquiry.inquiryId) {
-      const inquiryCount = await Inquiry.countDocuments();
-      inquiry.inquiryId = `INQ${String(inquiryCount + 1).padStart(6, '0')}`;
+      inquiry.inquiryId = await this.generateInquiryId();
     }
 
     // Keep status as draft (consistent with existing submitCart behavior)

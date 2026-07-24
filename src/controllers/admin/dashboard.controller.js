@@ -53,7 +53,7 @@ export const getRecentInquiries = async (req, res, next) => {
     const { limit = 5 } = req.query;
 
     const inquiries = await Inquiry.find()
-      .populate('customerId', 'name mobile email')
+      .populate('customerId', 'name firmName mobile email')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
@@ -76,7 +76,7 @@ export const getRecentOrders = async (req, res, next) => {
     const { limit = 5 } = req.query;
 
     const orders = await Order.find()
-      .populate('customerId', 'name mobile email')
+      .populate('customerId', 'name firmName mobile email')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit));
 
